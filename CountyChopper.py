@@ -7,76 +7,150 @@ import re
 
 # Function to normalize county names
 def normalize_county_name(county_name):
-    # Check if county_name is a valid string
     if isinstance(county_name, str):
-        # Convert to lowercase, strip leading/trailing spaces, and remove punctuation
         county_name = county_name.lower().strip()
-
-        # Remove common suffixes like "county", "co.", "co", etc.
         county_name = re.sub(r'(county|co\.?|[\?\.])$', '', county_name).strip()
-
-        # Capitalize the first letter of each word for consistency
         return county_name.title()
     else:
-        # If it's not a string (e.g., NaN), return an empty string or handle appropriately
         return ''
 
+# Function to read configurations from Chopper_Config.txt in the script folder
+def load_configurations():
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    config_file = os.path.join(script_dir, 'Chopper_Config.txt')
+
+    if not os.path.exists(config_file):
+        print("Configuration file 'Chopper_Config.txt' not found in script directory.")
+        return None
+
+    whitelist = set()
+    blacklist = set()
+    georeference_sources_blacklist = set()
+    georeference_verification_status_blacklist = set()
+    georeference_remarks_blacklist = set()  # New blacklist for georeferenceRemarks
+    counties = set()
+    state_name = None
+    coordinate_uncertainty_threshold = 10000  # Default value
+    filter_georeferenced_by = True  # Default: apply filter
+    filter_georeference_remarks = True  # Default: apply filter
+    in_county_section = False
+
+    with open(config_file, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line.startswith("whitelist:"):
+                whitelist.update(map(str.strip, line.split(":", 1)[1].split(',')))
+            elif line.startswith("blacklist:"):
+                blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
+            elif line.startswith("georeferenceSourcesBlacklist:"):
+                georeference_sources_blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
+            elif line.startswith("coordinateUncertaintyThreshold:"):
+                coordinate_uncertainty_threshold = int(line.split(":", 1)[1].strip())
+            elif line.startswith("filterGeoreferencedBy:"):
+                filter_georeferenced_by = line.split(":", 1)[1].strip().lower() == 'true'
+            elif line.startswith("filterGeoreferenceRemarks:"):
+                filter_georeference_remarks = line.split(":", 1)[1].strip().lower() == 'true'
+            elif line.startswith("georeferenceVerificationStatusBlacklist:"):
+                georeference_verification_status_blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
+            elif line.startswith("georeferenceRemarksBlacklist:"):  # New blacklist for georeferenceRemarks
+                georeference_remarks_blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
+            elif line.startswith("state:"):
+                state_name = line.split(":", 1)[1].strip()
+            elif line.startswith("counties:"):
+                in_county_section = True
+            elif in_county_section and line:
+                counties.add(normalize_county_name(line))
+
+    return (whitelist, blacklist, georeference_sources_blacklist, 
+            georeference_verification_status_blacklist, georeference_remarks_blacklist, counties, state_name, 
+            coordinate_uncertainty_threshold, filter_georeferenced_by, filter_georeference_remarks)
+
 def split_csv_by_state():
-    # Create a Tkinter root window (hidden)
     Tk().withdraw()
 
-    # Prompt the user to select the CSV file
     input_csv = askopenfilename(title="Select the CSV file", filetypes=[("CSV files", "*.csv")])
     if not input_csv:
         print("No file selected. Exiting.")
         return
 
-    # Prompt the user to enter the state they want to filter
-    state_name = input("Enter the state name to process: ").strip()
-
-    # Prompt the user to select the county list file (e.g., county_list.txt)
-    county_list_file = askopenfilename(title="Select the county list file", filetypes=[("Text files", "*.txt"), ("CSV files", "*.csv")])
-    if not county_list_file:
-        print("No county list file selected. Exiting.")
+    # Load configurations from Chopper_Config.txt
+    config = load_configurations()
+    if not config:
         return
 
-    # Read the county list from the external file (assuming it's a text file with one county per line)
-    with open(county_list_file, 'r') as file:
-        county_list = [normalize_county_name(line.strip()) for line in file.readlines()]
+    (whitelist, blacklist, georeference_sources_blacklist, 
+    georeference_verification_status_blacklist, georeference_remarks_blacklist, county_list, state_name, 
+    coordinate_uncertainty_threshold, filter_georeferenced_by, 
+    filter_georeference_remarks) = config
 
-    # Try reading the input CSV, skipping bad lines
+    if not state_name:
+        print("No state specified in the configuration file. Exiting.")
+        return
+
     try:
         data = pd.read_csv(input_csv, encoding='ISO-8859-1', on_bad_lines='skip', low_memory=False)
-    except UnicodeDecodeError:
-        print("Error decoding the file. Please check the encoding.")
-        return
-    except pd.errors.ParserError as e:
-        print(f"Parser error: {e}")
+    except (UnicodeDecodeError, pd.errors.ParserError) as e:
+        print(f"Error reading the file: {e}")
         return
 
-    # Ensure the columns are named 'stateProvince' and 'county'
-    if 'stateProvince' not in data.columns or 'county' not in data.columns:
-        raise ValueError("The CSV file must contain 'stateProvince' and 'county' columns.")
+    if 'stateProvince' not in data.columns or 'county' not in data.columns or 'institutionCode' not in data.columns or 'locality' not in data.columns:
+        raise ValueError("The CSV file must contain 'stateProvince', 'county', 'institutionCode', and 'locality' columns.")
 
-    # Normalize county names in the dataset
     data['normalized_county'] = data['county'].apply(normalize_county_name)
 
-    # Filter for entries only in the selected state and the counties in the list
-    state_data = data[(data['stateProvince'].str.lower() == state_name.lower()) & (data['normalized_county'].isin(county_list))]
+    # Apply whitelist/blacklist filter for institutionCode
+    data['institutionCode'] = data['institutionCode'].astype(str)
+    
+    # Separate out records that are whitelisted
+    whitelist_data = data[data['institutionCode'].isin(whitelist)]
 
-    # Create output directory for the new CSV files
+    # Exclude records with institutionCode on the blacklist
+    data = data[~data['institutionCode'].isin(blacklist)]
+
+    # Include records with null locality only if institutionCode is in the whitelist
+    data_with_locality = data[data['locality'].notnull()]
+    data_null_locality = data[data['locality'].isnull() & data['institutionCode'].isin(whitelist)]
+    filtered_data = pd.concat([data_with_locality, data_null_locality])
+
+    # Apply coordinateUncertaintyInMeters filter
+    filtered_data = filtered_data[
+        (filtered_data['coordinateUncertaintyInMeters'] < coordinate_uncertainty_threshold) &
+        (filtered_data['coordinateUncertaintyInMeters'].notnull())
+    ]
+
+    # Apply georeferencedBY and georeferenceRemarks filters if toggled on in the config
+    if filter_georeferenced_by:
+        filtered_data = filtered_data[filtered_data['georeferencedBy'].notnull()]
+
+    if filter_georeference_remarks:
+        filtered_data = filtered_data[filtered_data['georeferenceRemarks'].notnull()]
+
+    # Apply georeferenceSourcesBlacklist filter
+    filtered_data = filtered_data[~filtered_data['georeferenceSources'].isin(georeference_sources_blacklist)]
+
+    # Apply georeferenceVerificationStatusBlacklist filter
+    if 'georeferenceVerificationStatus' in filtered_data.columns:
+        filtered_data = filtered_data[~filtered_data['georeferenceVerificationStatus'].isin(georeference_verification_status_blacklist)]
+
+    # Apply georeferenceRemarksBlacklist filter - substring search
+    if 'georeferenceRemarks' in filtered_data.columns:
+        for remark in georeference_remarks_blacklist:
+            filtered_data = filtered_data[~filtered_data['georeferenceRemarks'].str.contains(remark, case=False, na=False)]
+
+    # Combine the filtered data with the whitelisted data that bypasses all filters
+    final_data = pd.concat([whitelist_data, filtered_data])
+
+    # Filter for entries only in the selected state and the counties in the list
+    state_data = final_data[(final_data['stateProvince'].str.lower() == state_name.lower()) & (final_data['normalized_county'].isin(county_list))]
+
     output_dir = f'{state_name.lower()}_counties'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Get the total number of counties for the progress bar
     unique_counties = state_data['normalized_county'].nunique()
 
-    # Group data by normalized county and save each county's data to a separate CSV file
     for county, county_data in tqdm(state_data.groupby('normalized_county'), total=unique_counties, desc=f"Processing {state_name} Counties"):
-        # Create filename as "<State>_<county>.csv"
         output_filename = os.path.join(output_dir, f"{state_name}_{county}.csv")
-        # Save to new CSV
         county_data.to_csv(output_filename, index=False)
 
     print(f"Files created in directory: {output_dir}")
