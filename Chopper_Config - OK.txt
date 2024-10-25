@@ -1,0 +1,98 @@
+#Records from these intitutions bypass all filters.
+whitelist: BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB
+
+#Records from these intsitutions are always filtered out.
+blacklist: 
+
+#Records with these strings are always filtered out. 
+georeferenceSourcesBlacklist: GEOLocate Batch Processing Tool
+georeferenceRemarksBlacklist: county
+
+# State to process
+state: Oklahoma
+
+# Records with this coordinate uncertainty threshold (set to any integer value, e.g., 10000) are filtered out.
+coordinateUncertaintyThreshold: 10000
+
+# Toggle for null georeferencedBY and georeferenceRemarks filtering (True/False)
+filterGeoreferencedBy: False
+filterGeoreferenceRemarks: True
+
+counties:
+Adair
+Alfalfa
+Atoka
+Beaver
+Beckham
+Blaine
+Bryan
+Caddo
+Canadian
+Carter
+Cherokee
+Choctaw
+Cimarron
+Cleveland
+Coal
+Comanche
+Cotton
+Craig
+Creek
+Custer
+Delaware
+Dewey
+Ellis
+Garfield
+Garvin
+Grady
+Grant
+Greer
+Harmon
+Harper
+Haskell
+Hughes
+Jackson
+Jefferson
+Johnston
+Kay
+Kingfisher
+Kiowa
+Latimer
+Le Flore
+Lincoln
+Logan
+Love
+Major
+Marshall
+Mayes
+McClain
+McCurtain
+McIntosh
+Murray
+Muskogee
+Noble
+Nowata
+Okfuskee
+Oklahoma
+Okmulgee
+Osage
+Ottawa
+Pawnee
+Payne
+Pittsburg
+Pontotoc
+Pottawatomie
+Pushmataha
+Roger Mills
+Rogers
+Seminole
+Sequoyah
+Stephens
+Texas
+Tillman
+Tulsa
+Wagoner
+Washington
+Washita
+Woods
+Woodward

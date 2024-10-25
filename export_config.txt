@@ -2,7 +2,7 @@ eventdate_tolerance=3
 recordnumber_tolerance=10
 similarity_threshold=95
 min_size=3
-allowed_institutions=BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB
+allowed_institutions=BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB,LL,TEX
 
 handle_null_recordnumber=0  # Treat null recordNumber "0" for ignore, "inf" for always fail
 handle_null_eventdate=inf   # Treat null eventDate "0" for ignore, "inf" for always fail
@@ -21,8 +21,10 @@ habitat
 country
 stateProvince
 county
-municipality
 locality
+compassDirection
+distance
+distanceUnit
 locationRemarks
 decimalLatitude
 decimalLongitude

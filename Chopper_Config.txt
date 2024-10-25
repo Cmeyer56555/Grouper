@@ -1,5 +1,5 @@
 #Records from these intitutions bypass all filters.
-whitelist: BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB
+whitelist: BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB,LL,TEX
 
 #Records from these intsitutions are always filtered out.
 blacklist: 
@@ -9,90 +9,28 @@ georeferenceSourcesBlacklist: GEOLocate Batch Processing Tool
 georeferenceRemarksBlacklist: county
 
 # State to process
-state: Oklahoma
+state: Texas
 
 # Records with this coordinate uncertainty threshold (set to any integer value, e.g., 10000) are filtered out.
 coordinateUncertaintyThreshold: 10000
 
-# Toggle for null georeferencedBY and georeferenceRemarks filtering (True/False)
+# Toggle for removing null georeferencedBY and georeferenceRemarks filtering (True="don't include nulls"/False="include nulls")
 filterGeoreferencedBy: False
-filterGeoreferenceRemarks: True
+filterGeoreferenceRemarks: False
 
 counties:
-Adair
-Alfalfa
-Atoka
-Beaver
-Beckham
-Blaine
-Bryan
-Caddo
-Canadian
-Carter
-Cherokee
-Choctaw
-Cimarron
-Cleveland
-Coal
-Comanche
-Cotton
-Craig
-Creek
-Custer
-Delaware
-Dewey
-Ellis
-Garfield
-Garvin
-Grady
-Grant
-Greer
-Harmon
-Harper
-Haskell
-Hughes
-Jackson
-Jefferson
-Johnston
-Kay
-Kingfisher
-Kiowa
-Latimer
-Le Flore
-Lincoln
-Logan
-Love
-Major
-Marshall
-Mayes
-McClain
-McCurtain
-McIntosh
-Murray
-Muskogee
-Noble
-Nowata
-Okfuskee
-Oklahoma
-Okmulgee
-Osage
-Ottawa
-Pawnee
-Payne
-Pittsburg
-Pontotoc
-Pottawatomie
-Pushmataha
-Roger Mills
-Rogers
-Seminole
-Sequoyah
-Stephens
-Texas
-Tillman
-Tulsa
-Wagoner
-Washington
-Washita
-Woods
-Woodward
+Brewster
+Jeff Davis
+Presidio
+El Paso
+Val Verde
+Culberson
+Hudspeth
+Terrell
+Reeves
+Winkler
+Ward
+Crockett
+Loving
+Crane
+Upton
