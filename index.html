@@ -63,6 +63,18 @@
             maxZoom: 19,
         }).addTo(map);
 
+        // Extract parameters from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const lat = parseFloat(urlParams.get('lat')) || 0; // Default to 0 if not provided
+        const lon = parseFloat(urlParams.get('lon')) || 0; // Default to 0 if not provided
+
+        // Add a marker for the provided latitude and longitude
+        if (lat !== 0 || lon !== 0) {
+            const marker = L.marker([lat, lon]).addTo(map);
+            marker.bindPopup(`<b>Provided Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`).openPopup();
+            map.setView([lat, lon], 13); // Center map on the provided point
+        }
+
         // Add Geoman controls for drawing tools
         map.pm.addControls({
             position: 'topleft',
@@ -127,24 +139,4 @@
                 totalDistance = 0;
                 previousLatLng = null;
                 distanceMarkers.forEach(marker => map.removeLayer(marker));
-                distanceMarkers.length = 0;
-            }
-        });
-
-        // Event: During polyline drawing
-        map.on('pm:drawvertex', (e) => {
-            const latlng = e.latlng;
-            displayDynamicDistance(latlng); // Display distances dynamically
-        });
-
-        // Event: When polyline drawing finishes
-        map.on('pm:create', (e) => {
-            if (e.shape === 'Line') {
-                // Final polyline created
-                console.log(`Total distance: ${totalDistance.toFixed(2)} meters`);
-                previousLatLng = null; // Reset for future drawings
-            }
-        });
-    </script>
-</body>
-</html>
+                dista
