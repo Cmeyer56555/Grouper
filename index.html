@@ -87,31 +87,65 @@
             }).addTo(map);
         });
 
-        // Add Geoman plugin for measuring tools
+        // Add Geoman plugin for drawing tools
         map.pm.addControls({
             position: 'topleft',
-            drawMarker: false,
+            drawMarker: true, // Allow adding new points
             drawPolygon: false,
             drawPolyline: true, // Enable line drawing for measuring
             drawCircle: false,
             drawRectangle: false,
             cutPolygon: false,
-            editMode: false,
-            dragMode: false,
-            removalMode: false
+            editMode: true, // Allow editing existing shapes
+            dragMode: true,
+            removalMode: true
         });
 
-        // Measure distance when drawing a line
+        // Function to calculate and display distances at each vertex
+        function calculateVertexDistances(layer) {
+            const latlngs = layer.getLatLngs();
+            let totalDistance = 0;
+            latlngs.forEach((latlng, index) => {
+                if (index > 0) {
+                    const distance = latlngs[index - 1].distanceTo(latlng);
+                    totalDistance += distance;
+
+                    // Add a distance marker at this vertex
+                    const midpoint = L.latLng(
+                        (latlngs[index - 1].lat + latlng.lat) / 2,
+                        (latlngs[index - 1].lng + latlng.lng) / 2
+                    );
+
+                    L.marker(midpoint, {
+                        icon: L.divIcon({
+                            className: 'distance-label',
+                            html: `${distance.toFixed(2)} m`,
+                            iconSize: [50, 20],
+                            iconAnchor: [25, 10]
+                        })
+                    }).addTo(map);
+                }
+            });
+        }
+
+        // Event: When a new line is created
         map.on('pm:create', (e) => {
             if (e.shape === 'Line') {
                 const layer = e.layer;
-                const latlngs = layer.getLatLngs();
-                let totalDistance = 0;
-                for (let i = 1; i < latlngs.length; i++) {
-                    totalDistance += latlngs[i - 1].distanceTo(latlngs[i]);
-                }
-                alert(`Total Distance: ${totalDistance.toFixed(2)} meters`);
+                calculateVertexDistances(layer); // Calculate and display distances
+            } else if (e.shape === 'Marker') {
+                // For new points, add a popup
+                e.layer.bindPopup(`New Point: ${e.layer.getLatLng().lat}, ${e.layer.getLatLng().lng}`).openPopup();
             }
+        });
+
+        // Allow editing of shapes
+        map.on('pm:edit', (e) => {
+            e.layers.eachLayer((layer) => {
+                if (layer instanceof L.Polyline) {
+                    calculateVertexDistances(layer); // Recalculate distances on edit
+                }
+            });
         });
     </script>
 </body>
