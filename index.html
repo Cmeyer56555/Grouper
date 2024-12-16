@@ -34,6 +34,16 @@
             border: 1px solid gray;
             border-radius: 3px;
         }
+        #version-label {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -43,6 +53,7 @@
         <span id="radiusValue">1000</span> meters
     </div>
     <div id="map"></div>
+    <div id="version-label">Version: 1.0.0</div>
     <script>
         // Initialize the map
         const map = L.map('map').setView([0, 0], 13);
