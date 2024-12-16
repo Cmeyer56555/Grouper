@@ -58,7 +58,7 @@
 
         // Add a marker for the center point
         const marker = L.marker([lat, lon]).addTo(map);
-        marker.bindPopup(`<b>Center Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`).openPopup();
+        marker.bindPopup(`<b>Center Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`); // Popup hidden by default
 
         // Add a circle for the uncertainty radius
         let circle = L.circle([lat, lon], {
@@ -102,14 +102,6 @@
         });
 
         // Measure distance when drawing a line
-        map.on('pm:drawstart', (e) => {
-            console.log("Started drawing!");
-        });
-
-        map.on('pm:drawend', (e) => {
-            console.log("Finished drawing!");
-        });
-
         map.on('pm:create', (e) => {
             if (e.shape === 'Line') {
                 const layer = e.layer;
