@@ -1,35 +1,66 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dynamic Map with Circle</title>
+    <title>Dynamic Map with Circle and Measure Tool</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <!-- Leaflet.Measure CSS and JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css" />
+    <script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
 <body>
-    <div id="map" style="width: 100%; height: 100vh;"></div>
+    <div id="map"></div>
     <script>
         // Extract parameters from the URL
         const urlParams = new URLSearchParams(window.location.search);
-        const lat = parseFloat(urlParams.get('lat'));
-        const lon = parseFloat(urlParams.get('lon'));
-        const radius = parseFloat(urlParams.get('radius'));
+        const lat = parseFloat(urlParams.get('lat')) || 0; // Default to 0 if not provided
+        const lon = parseFloat(urlParams.get('lon')) || 0; // Default to 0 if not provided
+        const radius = parseFloat(urlParams.get('radius')) || 0; // Default to 0 if not provided
 
         // Initialize the map
-        const map = L.map('map').setView([lat, lon], 13);
+        const map = L.map('map', {
+            measureControl: true // Enable measurement tool
+        }).setView([lat, lon], 13);
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
         }).addTo(map);
 
-        // Add a circle
-        L.circle([lat, lon], {
-            color: 'red',
-            fillColor: '#f03',
-            fillOpacity: 0.5,
-            radius: radius // Radius in meters
+        // Add a circle to represent uncertainty
+        if (radius > 0) {
+            L.circle([lat, lon], {
+                color: 'red',
+                fillColor: '#f03',
+                fillOpacity: 0.5,
+                radius: radius // Radius in meters
+            }).addTo(map);
+        }
+
+        // Add the measurement tool with custom settings
+        L.control.measure({
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares',
+            activeColor: '#f03', // Color while measuring
+            completedColor: '#f03' // Color after completing
         }).addTo(map);
     </script>
 </body>
