@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dynamic Map with Circle and Measure Tool</title>
+    <title>Dynamic Map with Circle and Draw Tool</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <!-- Leaflet.Measure CSS and JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css" />
-    <script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.min.js"></script>
+    <!-- Leaflet.draw CSS and JS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <style>
         body, html {
             margin: 0;
@@ -34,9 +34,7 @@
         const radius = parseFloat(urlParams.get('radius')) || 0; // Default to 0 if not provided
 
         // Initialize the map
-        const map = L.map('map', {
-            measureControl: true // Enable measurement tool
-        }).setView([lat, lon], 13);
+        const map = L.map('map').setView([lat, lon], 13);
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -53,15 +51,30 @@
             }).addTo(map);
         }
 
-        // Add the measurement tool with custom settings
-        L.control.measure({
-            primaryLengthUnit: 'meters',
-            secondaryLengthUnit: 'kilometers',
-            primaryAreaUnit: 'sqmeters',
-            secondaryAreaUnit: 'hectares',
-            activeColor: '#f03', // Color while measuring
-            completedColor: '#f03' // Color after completing
-        }).addTo(map);
+        // Add drawing tools to the map
+        const drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        const drawControl = new L.Control.Draw({
+            edit: {
+                featureGroup: drawnItems,
+            },
+            draw: {
+                polygon: true,
+                polyline: true,
+                rectangle: true,
+                circle: true,
+                marker: true,
+            },
+        });
+
+        map.addControl(drawControl);
+
+        // Listen for draw events
+        map.on('draw:created', function (event) {
+            const layer = event.layer;
+            drawnItems.addLayer(layer);
+        });
     </script>
 </body>
 </html>
