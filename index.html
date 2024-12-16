@@ -7,7 +7,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <!-- Leaflet Geoman Plugin for Distance Measuring -->
+    <!-- Leaflet Geoman Plugin for Drawing Tools -->
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css" />
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.min.js"></script>
     <style>
@@ -27,14 +27,16 @@
         #map {
             flex: 1;
         }
-        label {
-            font-size: 14px;
-            margin-right: 10px;
+        .distance-label {
+            font-size: 12px;
+            background-color: white;
+            padding: 2px;
+            border: 1px solid gray;
+            border-radius: 3px;
         }
     </style>
 </head>
 <body>
-    <!-- Controls for adjusting radius -->
     <div id="controls">
         <label for="radiusSlider">Adjust Radius (meters):</label>
         <input type="range" id="radiusSlider" min="100" max="10000" step="100" value="1000">
@@ -42,110 +44,95 @@
     </div>
     <div id="map"></div>
     <script>
-        // Extract parameters from the URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const lat = parseFloat(urlParams.get('lat')) || 0; // Default to 0 if not provided
-        const lon = parseFloat(urlParams.get('lon')) || 0; // Default to 0 if not provided
-        const initialRadius = parseFloat(urlParams.get('radius')) || 1000; // Default radius
-
         // Initialize the map
-        const map = L.map('map').setView([lat, lon], 13);
+        const map = L.map('map').setView([0, 0], 13);
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
         }).addTo(map);
 
-        // Add a marker for the center point
-        const marker = L.marker([lat, lon]).addTo(map);
-        marker.bindPopup(`<b>Center Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`); // Popup hidden by default
-
-        // Add a circle for the uncertainty radius
-        let circle = L.circle([lat, lon], {
-            color: 'blue',
-            fillColor: '#add8e6',
-            fillOpacity: 0.5,
-            radius: initialRadius // Initial radius
-        }).addTo(map);
-
-        // Update radius dynamically
-        const radiusSlider = document.getElementById('radiusSlider');
-        const radiusValue = document.getElementById('radiusValue');
-
-        radiusSlider.value = initialRadius; // Set initial slider value
-        radiusValue.textContent = initialRadius; // Display initial radius
-
-        radiusSlider.addEventListener('input', () => {
-            const newRadius = parseFloat(radiusSlider.value);
-            radiusValue.textContent = newRadius;
-            map.removeLayer(circle); // Remove old circle
-            circle = L.circle([lat, lon], {
-                color: 'blue',
-                fillColor: '#add8e6',
-                fillOpacity: 0.5,
-                radius: newRadius // New radius
-            }).addTo(map);
-        });
-
-        // Add Geoman plugin for drawing tools
+        // Add Geoman controls for drawing tools
         map.pm.addControls({
             position: 'topleft',
-            drawMarker: true, // Allow adding new points
+            drawMarker: false,
+            drawPolyline: true, // Enable polyline drawing
             drawPolygon: false,
-            drawPolyline: true, // Enable line drawing for measuring
             drawCircle: false,
             drawRectangle: false,
-            cutPolygon: false,
-            editMode: true, // Allow editing existing shapes
-            dragMode: true,
+            editMode: true,
+            dragMode: false,
             removalMode: true
         });
 
-        // Function to calculate and display distances at each vertex
-        function calculateVertexDistances(layer) {
-            const latlngs = layer.getLatLngs();
-            let totalDistance = 0;
-            latlngs.forEach((latlng, index) => {
-                if (index > 0) {
-                    const distance = latlngs[index - 1].distanceTo(latlng);
-                    totalDistance += distance;
+        // Variables to track distances
+        let totalDistance = 0;
+        let previousLatLng = null;
+        const distanceMarkers = [];
 
-                    // Add a distance marker at this vertex
-                    const midpoint = L.latLng(
-                        (latlngs[index - 1].lat + latlng.lat) / 2,
-                        (latlngs[index - 1].lng + latlng.lng) / 2
-                    );
+        // Function to calculate and display distances dynamically
+        function displayDynamicDistance(latlng) {
+            if (previousLatLng) {
+                // Calculate distance from the previous point
+                const segmentDistance = previousLatLng.distanceTo(latlng);
+                totalDistance += segmentDistance;
 
-                    L.marker(midpoint, {
-                        icon: L.divIcon({
-                            className: 'distance-label',
-                            html: `${distance.toFixed(2)} m`,
-                            iconSize: [50, 20],
-                            iconAnchor: [25, 10]
-                        })
-                    }).addTo(map);
-                }
-            });
+                // Display the segment distance
+                const midpoint = L.latLng(
+                    (previousLatLng.lat + latlng.lat) / 2,
+                    (previousLatLng.lng + latlng.lng) / 2
+                );
+
+                const segmentLabel = L.marker(midpoint, {
+                    icon: L.divIcon({
+                        className: 'distance-label',
+                        html: `${segmentDistance.toFixed(2)} m`,
+                        iconSize: [50, 20],
+                        iconAnchor: [25, 10]
+                    })
+                }).addTo(map);
+                distanceMarkers.push(segmentLabel);
+
+                // Display the total distance as a label
+                const totalLabel = L.marker(latlng, {
+                    icon: L.divIcon({
+                        className: 'distance-label',
+                        html: `<b>Total:</b> ${totalDistance.toFixed(2)} m`,
+                        iconSize: [70, 20],
+                        iconAnchor: [35, 10]
+                    })
+                }).addTo(map);
+                distanceMarkers.push(totalLabel);
+            }
+
+            // Update the previous point to the current point
+            previousLatLng = latlng;
         }
 
-        // Event: When a new line is created
-        map.on('pm:create', (e) => {
+        // Event: Start drawing a polyline
+        map.on('pm:drawstart', (e) => {
             if (e.shape === 'Line') {
-                const layer = e.layer;
-                calculateVertexDistances(layer); // Calculate and display distances
-            } else if (e.shape === 'Marker') {
-                // For new points, add a popup
-                e.layer.bindPopup(`New Point: ${e.layer.getLatLng().lat}, ${e.layer.getLatLng().lng}`).openPopup();
+                // Reset distances and markers
+                totalDistance = 0;
+                previousLatLng = null;
+                distanceMarkers.forEach(marker => map.removeLayer(marker));
+                distanceMarkers.length = 0;
             }
         });
 
-        // Allow editing of shapes
-        map.on('pm:edit', (e) => {
-            e.layers.eachLayer((layer) => {
-                if (layer instanceof L.Polyline) {
-                    calculateVertexDistances(layer); // Recalculate distances on edit
-                }
-            });
+        // Event: During polyline drawing
+        map.on('pm:drawvertex', (e) => {
+            const latlng = e.latlng;
+            displayDynamicDistance(latlng); // Display distances dynamically
+        });
+
+        // Event: When polyline drawing finishes
+        map.on('pm:create', (e) => {
+            if (e.shape === 'Line') {
+                // Final polyline created
+                console.log(`Total distance: ${totalDistance.toFixed(2)} meters`);
+                previousLatLng = null; // Reset for future drawings
+            }
         });
     </script>
 </body>
