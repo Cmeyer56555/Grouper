@@ -33,6 +33,8 @@ def load_configurations():
     coordinate_uncertainty_threshold = 10000  # Default value
     filter_georeferenced_by = True  # Default: apply filter
     filter_georeference_remarks = True  # Default: apply filter
+    filter_coordinate_uncertainty_null = True  # Default: apply filter
+    filter_georeferenced_by_and_remarks_null = True  # Default: apply filter
     in_county_section = False
 
     with open(config_file, 'r') as file:
@@ -50,6 +52,10 @@ def load_configurations():
                 filter_georeferenced_by = line.split(":", 1)[1].strip().lower() == 'true'
             elif line.startswith("filterGeoreferenceRemarks:"):
                 filter_georeference_remarks = line.split(":", 1)[1].strip().lower() == 'true'
+            elif line.startswith("filterCoordinateUncertaintyNull:"):
+                filter_coordinate_uncertainty_null = line.split(":", 1)[1].strip().lower() == 'true'
+            elif line.startswith("filterGeoreferencedByAndRemarksNull:"):
+                filter_georeferenced_by_and_remarks_null = line.split(":", 1)[1].strip().lower() == 'true'
             elif line.startswith("georeferenceVerificationStatusBlacklist:"):
                 georeference_verification_status_blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
             elif line.startswith("georeferenceRemarksBlacklist:"):  # New blacklist for georeferenceRemarks
@@ -63,7 +69,8 @@ def load_configurations():
 
     return (whitelist, blacklist, georeference_sources_blacklist, 
             georeference_verification_status_blacklist, georeference_remarks_blacklist, counties, state_name, 
-            coordinate_uncertainty_threshold, filter_georeferenced_by, filter_georeference_remarks)
+            coordinate_uncertainty_threshold, filter_georeferenced_by, filter_georeference_remarks,
+            filter_coordinate_uncertainty_null, filter_georeferenced_by_and_remarks_null)
 
 def split_csv_by_state():
     Tk().withdraw()
@@ -81,7 +88,7 @@ def split_csv_by_state():
     (whitelist, blacklist, georeference_sources_blacklist, 
     georeference_verification_status_blacklist, georeference_remarks_blacklist, county_list, state_name, 
     coordinate_uncertainty_threshold, filter_georeferenced_by, 
-    filter_georeference_remarks) = config
+    filter_georeference_remarks, filter_coordinate_uncertainty_null, filter_georeferenced_by_and_remarks_null) = config
 
     if not state_name:
         print("No state specified in the configuration file. Exiting.")
@@ -114,9 +121,12 @@ def split_csv_by_state():
 
     # Apply coordinateUncertaintyInMeters filter
     filtered_data = filtered_data[
-        (filtered_data['coordinateUncertaintyInMeters'] < coordinate_uncertainty_threshold) &
-        (filtered_data['coordinateUncertaintyInMeters'].notnull())
+        (filtered_data['coordinateUncertaintyInMeters'] < coordinate_uncertainty_threshold)
     ]
+
+    # Apply filter to exclude records with null CoordinateUncertainty if enabled
+    if filter_coordinate_uncertainty_null:
+        filtered_data = filtered_data[filtered_data['coordinateUncertaintyInMeters'].notnull()]
 
     # Apply georeferencedBY and georeferenceRemarks filters if toggled on in the config
     if filter_georeferenced_by:
@@ -124,6 +134,12 @@ def split_csv_by_state():
 
     if filter_georeference_remarks:
         filtered_data = filtered_data[filtered_data['georeferenceRemarks'].notnull()]
+
+    # Apply the filter that excludes records if both georeferencedBy and georeferenceRemarks are null
+    if filter_georeferenced_by_and_remarks_null:
+        filtered_data = filtered_data[
+            ~((filtered_data['georeferencedBy'].isnull()) & (filtered_data['georeferenceRemarks'].isnull()))
+        ]
 
     # Apply georeferenceSourcesBlacklist filter
     filtered_data = filtered_data[~filtered_data['georeferenceSources'].isin(georeference_sources_blacklist)]

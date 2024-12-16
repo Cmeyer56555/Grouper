@@ -1,10 +1,10 @@
 eventdate_tolerance=3
-recordnumber_tolerance=10
+recordnumber_tolerance=50
 similarity_threshold=95
-min_size=3
+min_size=2
 allowed_institutions=BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB,LL,TEX
 
-handle_null_recordnumber=0  # Treat null recordNumber "0" for ignore, "inf" for always fail
+handle_null_recordnumber=inf  # Treat null recordNumber "0" for ignore, "inf" for always fail
 handle_null_eventdate=inf   # Treat null eventDate "0" for ignore, "inf" for always fail
 
 # Fields for export CSV (one field per line)
@@ -12,6 +12,7 @@ Group_ID
 Sub_Group_ID
 id
 institutionCode
+collectionCode
 catalogNumber
 recordedBy
 associatedCollectors
@@ -36,3 +37,4 @@ georeferenceProtocol
 georeferenceSources
 georeferenceVerificationStatus
 georeferenceRemarks
+references

@@ -1,0 +1,125 @@
+eventdate_tolerance=3
+recordnumber_tolerance=50
+similarity_threshold=95
+min_size=1
+allowed_institutions=BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB,LL,TEX
+
+handle_null_recordnumber=0  # Treat null recordNumber "0" for ignore, "inf" for always fail
+handle_null_eventdate=0   # Treat null eventDate "0" for ignore, "inf" for always fail
+
+# Fields for export CSV (one field per line)
+Group_ID
+Sub_Group_ID
+id
+institutionCode
+collectionCode
+ownerInstitutionCode
+basisOfRecord
+occurrenceID
+catalogNumber
+stateProvince
+county
+otherCatalogNumbers
+higherClassification
+kingdom
+phylum
+class
+order
+family
+scientificName
+taxonID
+scientificNameAuthorship
+genus
+subgenus
+specificEpithet
+verbatimTaxonRank
+infraspecificEpithet
+taxonRank
+identifiedBy
+dateIdentified
+identificationReferences
+identificationRemarks
+taxonRemarks
+identificationQualifier
+typeStatus
+recordedBy
+associatedCollectors
+recordNumber
+eventDate
+eventDate2
+year
+month
+day
+startDayOfYear
+endDayOfYear
+verbatimEventDate
+OCCURENCEREMARKS (ORIGINAL)
+OCCURRENCEREMARKS (Parsed)
+occurrenceRemarks
+HABITAT (ORIGINAL)
+HABITAT (P)
+habitat
+SUBSTRATE(ORIGINAL)
+SUBSTRATE (P)
+substrate
+VERBATIMATTRIBUTES (original)
+VERBATIMATTRIBUTES (PARSED)
+verbatimattributes
+fieldNumber
+eventID
+informationWithheld
+dataGeneralizations
+dynamicProperties
+associatedOccurrences
+associatedSequences
+ASSOCIATEDTAXA (original)
+ASSOCIATEDTAXA (parsed)
+associatedTaxa
+reproductiveCondition
+establishmentMeans
+cultivationStatus
+lifeStage
+sex
+individualCount
+samplingProtocol
+preparations
+locationID
+continent
+waterBody
+islandGroup
+island
+country
+municipality
+LOCALITY (original)
+locality
+locationRemarks
+localitySecurity
+localitySecurityReason
+decimalLatitude
+decimalLongitude
+geodeticDatum
+coordinateUncertaintyInMeters
+VERBATIMCOORDINATES (parsed)
+georeferencedBy
+georeferenceProtocol
+georeferenceSources
+georeferenceVerificationStatus
+georeferenceRemarks
+GEOREFERENCE REMARKS (parsed)
+minimumDepthInMeters
+maximumDepthInMeters
+verbatimDepth
+verbatimElevation (original)
+VerbatimElevation(parsed)
+verbatimElevation
+minimumElevationInMeters
+maximumElevationInMeters
+disposition
+language
+recordEnteredBy
+modified
+sourcePrimaryKey-dbpk
+collID
+recordID
+references
+
