@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.6</title>
+    <title>Where's Walter v.5</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -63,6 +63,7 @@
         const lon = parseFloat(urlParams.get('lon')) || 0; // Default to 0 if not provided
         const initialRadius = parseFloat(urlParams.get('radius')) || 1000; // Default radius
         let selectedUnit = 'meters';
+        const drawnPolylines = []; // Store drawn polylines for recalculation
 
         // Initialize the map
         const map = L.map('map').setView([lat, lon], 13);
@@ -106,6 +107,7 @@
 
         unitSelect.addEventListener('change', (e) => {
             selectedUnit = e.target.value;
+            drawnPolylines.forEach((polyline) => showDistances(polyline)); // Recalculate distances
         });
 
         // Add Geoman plugin for measuring tools
@@ -148,10 +150,8 @@
                 }
             });
 
-            let totalDistance = 0;
             for (let i = 1; i < latlngs.length; i++) {
                 const distance = latlngs[i].distanceTo(latlngs[i - 1]);
-                totalDistance += distance;
 
                 // Add distance label at the midpoint
                 const midpoint = L.latLng(
@@ -173,6 +173,7 @@
         // Event: Show dynamic distances on Polyline creation
         map.on('pm:create', (e) => {
             if (e.shape === 'Line') {
+                drawnPolylines.push(e.layer);
                 showDistances(e.layer);
             }
         });
