@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.9</title>
+    <title>Where's Walter v.5</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -85,6 +85,19 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
         }).addTo(map);
+
+        // Add Geoman tools
+        map.pm.addControls({
+            position: 'topleft',
+            drawMarker: true,      // Enable marker tool
+            drawPolyline: true,    // Enable polyline tool for measuring
+            drawCircle: true,      // Enable circle tool for radius
+            drawPolygon: false,    // Disable polygon tool
+            drawRectangle: false,  // Disable rectangle tool
+            editMode: true,        // Allow editing of shapes
+            dragMode: true,
+            removalMode: true      // Allow shape removal
+        });
 
         // Add a marker for the center point
         const marker = L.marker([lat, lon]).addTo(map);
