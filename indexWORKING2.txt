@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.8</title>
+    <title>Where's Walter v.9</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -81,21 +81,6 @@
         // Initialize the map
         const map = L.map('map').setView([lat, lon], 13);
 
-
-        // Add Geoman drawing tools
-        map.pm.addControls({
-        position: 'topleft',
-        drawMarker: true,      // Enable marker tool
-        drawPolyline: true,    // Enable polyline tool for measuring
-        drawPolygon: false,
-        drawCircle: true,
-        drawRectangle: false,
-        editMode: true,        // Enable editing of shapes
-        dragMode: true,
-        removalMode: true      // Enable deletion of shapes
-});
-
-
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -169,9 +154,12 @@
                 const distance = latlngs[i].distanceTo(latlngs[i - 1]);
                 totalDistance += distance;
 
+                const offsetLat = 0.00005; // Offset for latitude
+                const offsetLng = 0.00005; // Offset for longitude
+
                 const midpoint = L.latLng(
-                    (latlngs[i].lat + latlngs[i - 1].lat) / 2,
-                    (latlngs[i].lng + latlngs[i - 1].lng) / 2
+                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + offsetLat,
+                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + offsetLng
                 );
 
                 L.marker(midpoint, {
