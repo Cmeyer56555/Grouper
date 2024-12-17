@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.5</title>
+    <title>Where's Walter v.9</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -88,13 +88,14 @@
 
         // Add a marker for the center point
         const marker = L.marker([lat, lon]).addTo(map);
-        marker.bindPopup(`<b>Center Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`);
+        marker.bindPopup(`<b>Center Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`); // Popup hidden by default
 
+        // Add a circle for the uncertainty radius
         let circle = L.circle([lat, lon], {
             color: 'blue',
             fillColor: '#add8e6',
             fillOpacity: 0.5,
-            radius: initialRadius
+            radius: initialRadius // Initial radius
         }).addTo(map);
 
         const radiusSlider = document.getElementById('radiusSlider');
@@ -102,8 +103,8 @@
         const unitSelect = document.getElementById('unitSelect');
         const redrawButton = document.getElementById('redrawButton');
 
-        radiusSlider.value = initialRadius;
-        radiusValue.textContent = initialRadius;
+        radiusSlider.value = initialRadius; // Set initial slider value
+        radiusValue.textContent = initialRadius; // Display initial radius
 
         radiusSlider.addEventListener('input', () => {
             const newRadius = parseFloat(radiusSlider.value);
@@ -119,11 +120,11 @@
 
         unitSelect.addEventListener('change', (e) => {
             selectedUnit = e.target.value;
-            drawnPolylines.forEach(polyline => showDistances(polyline));
+            drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
         redrawButton.addEventListener('click', () => {
-            drawnPolylines.forEach(polyline => showDistances(polyline));
+            drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
         function convertDistance(distance) {
@@ -143,50 +144,63 @@
                 latlngs = latlngs[0];
             }
 
-            map.eachLayer(layer => {
-                if (layer.options.icon && layer.options.icon.options.className) {
-                    map.removeLayer(layer);
+            map.eachLayer((l) => {
+                if (l.options.icon && (l.options.icon.options.className === 'distance-label' || l.options.icon.options.className === 'total-length-label')) {
+                    map.removeLayer(l);
                 }
             });
 
             for (let i = 1; i < latlngs.length; i++) {
                 const distance = latlngs[i].distanceTo(latlngs[i - 1]);
                 totalDistance += distance;
+
+                const offsetLat = 0.00005; // Offset for latitude
+                const offsetLng = 0.00005; // Offset for longitude
+
                 const midpoint = L.latLng(
-                    (latlngs[i].lat + latlngs[i - 1].lat) / 2,
-                    (latlngs[i].lng + latlngs[i - 1].lng) / 2
+                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + offsetLat,
+                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + offsetLng
                 );
+
                 L.marker(midpoint, {
-                    icon: L.divIcon({ className: 'distance-label', html: convertDistance(distance), iconSize: [50, 20] })
+                    icon: L.divIcon({
+                        className: 'distance-label',
+                        html: convertDistance(distance),
+                        iconSize: [50, 20],
+                        iconAnchor: [25, 10]
+                    })
                 }).addTo(map);
             }
 
+            // Display total distance at the center of the polyline
             const center = latlngs[Math.floor(latlngs.length / 2)];
             L.marker(center, {
                 icon: L.divIcon({
                     className: 'total-length-label',
-                    html: `Total: ${convertDistance(totalDistance)}`
+                    html: `Total: ${convertDistance(totalDistance)}`,
+                    iconSize: [100, 25],
+                    iconAnchor: [50, 12]
                 })
             }).addTo(map);
         }
 
-        async function snapToRoad(latlngs) {
-            const coordinates = latlngs.map(point => `${point.lng},${point.lat}`).join(';');
-            const url = `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
-            const response = await fetch(url);
-            const data = await response.json();
-            return data.routes[0].geometry.coordinates.map(coord => L.latLng(coord[1], coord[0]));
-        }
-
-        map.on('pm:create', async e => {
+        map.on('pm:create', (e) => {
             if (e.shape === 'Line') {
-                const originalLatLngs = e.layer.getLatLngs();
-                const snappedLatLngs = await snapToRoad(originalLatLngs);
-                const snappedLine = L.polyline(snappedLatLngs, { color: 'red' }).addTo(map);
-                drawnPolylines.push(snappedLine);
-                showDistances(snappedLine);
-                map.removeLayer(e.layer); // Remove the original line
+                drawnPolylines.push(e.layer);
+                showDistances(e.layer);
             }
+            if (e.shape === 'Marker') {
+                const { lat, lng } = e.layer.getLatLng();
+                e.layer.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lng.toFixed(5)}`).openPopup();
+            }
+        });
+
+        map.on('pm:edit', (e) => {
+            e.layers.eachLayer((layer) => {
+                if (layer instanceof L.Polyline) {
+                    setTimeout(() => showDistances(layer), 100);
+                }
+            });
         });
     </script>
 </body>
