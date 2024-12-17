@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.5</title>
+    <title>Where's Walter v.9</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -167,12 +167,12 @@
                 const distance = latlngs[i].distanceTo(latlngs[i - 1]);
                 totalDistance += distance;
 
-                const offsetLat = 0.00005; // Offset for latitude
-                const offsetLng = 0.00005; // Offset for longitude
+                const zoom = map.getZoom();
+                const offsetFactor = 0.00005 * (18 / zoom); // Offset scales with zoom level
 
                 const midpoint = L.latLng(
-                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + offsetLat,
-                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + offsetLng
+                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + offsetFactor,
+                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + offsetFactor
                 );
 
                 L.marker(midpoint, {
