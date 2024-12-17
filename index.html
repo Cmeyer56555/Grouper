@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.10</title>
+    <title>Where's Walter v.5</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -54,7 +54,7 @@
     </style>
 </head>
 <body>
-    <!-- Controls for adjusting radius -->
+    <!-- Controls for adjusting radius and offset -->
     <div id="controls">
         <label for="radiusSlider">Adjust Radius (meters):</label>
         <input type="range" id="radiusSlider" min="100" max="10000" step="100" value="1000">
@@ -66,6 +66,9 @@
             <option value="feet">Feet</option>
             <option value="miles">Miles</option>
         </select>
+        <label for="offsetSlider">Label Offset:</label>
+        <input type="range" id="offsetSlider" min="0" max="0.0005" step="0.00001" value="0.00005">
+        <span id="offsetValue">0.00005</span>
         <button id="redrawButton">Redraw Distances</button>
     </div>
     <div id="map"></div>
@@ -76,6 +79,7 @@
         const lon = parseFloat(urlParams.get('lon')) || 0; // Default to 0 if not provided
         const initialRadius = parseFloat(urlParams.get('radius')) || 1000; // Default radius
         let selectedUnit = 'meters';
+        let offsetFactor = parseFloat(document.getElementById('offsetSlider').value); // Default offset
         const drawnPolylines = []; // Store drawn polylines for recalculation
 
         // Initialize the map
@@ -115,6 +119,8 @@
         const radiusValue = document.getElementById('radiusValue');
         const unitSelect = document.getElementById('unitSelect');
         const redrawButton = document.getElementById('redrawButton');
+        const offsetSlider = document.getElementById('offsetSlider');
+        const offsetValue = document.getElementById('offsetValue');
 
         radiusSlider.value = initialRadius; // Set initial slider value
         radiusValue.textContent = initialRadius; // Display initial radius
@@ -129,6 +135,12 @@
                 fillOpacity: 0.5,
                 radius: newRadius
             }).addTo(map);
+        });
+
+        offsetSlider.addEventListener('input', () => {
+            offsetFactor = parseFloat(offsetSlider.value);
+            offsetValue.textContent = offsetFactor;
+            drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
         unitSelect.addEventListener('change', (e) => {
@@ -167,9 +179,6 @@
                 const distance = latlngs[i].distanceTo(latlngs[i - 1]);
                 totalDistance += distance;
 
-                const zoom = map.getZoom();
-                const offsetFactor = 0.00025 * (18 / zoom); // Offset scales with zoom level
-
                 const midpoint = L.latLng(
                     (latlngs[i].lat + latlngs[i - 1].lat) / 2 + offsetFactor,
                     (latlngs[i].lng + latlngs[i - 1].lng) / 2 + offsetFactor
@@ -185,7 +194,6 @@
                 }).addTo(map);
             }
 
-            // Display total distance at the center of the polyline
             const center = latlngs[Math.floor(latlngs.length / 2)];
             L.marker(center, {
                 icon: L.divIcon({
