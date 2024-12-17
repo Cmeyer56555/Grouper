@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.5</title>
+    <title>Where's Walter v.6</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -47,6 +47,13 @@
         <label for="radiusSlider">Adjust Radius (meters):</label>
         <input type="range" id="radiusSlider" min="100" max="10000" step="100" value="1000">
         <span id="radiusValue">1000</span> meters
+        <label for="unitSelect">Distance Unit:</label>
+        <select id="unitSelect">
+            <option value="meters" selected>Meters</option>
+            <option value="kilometers">Kilometers</option>
+            <option value="feet">Feet</option>
+            <option value="miles">Miles</option>
+        </select>
     </div>
     <div id="map"></div>
     <script>
@@ -55,6 +62,7 @@
         const lat = parseFloat(urlParams.get('lat')) || 0; // Default to 0 if not provided
         const lon = parseFloat(urlParams.get('lon')) || 0; // Default to 0 if not provided
         const initialRadius = parseFloat(urlParams.get('radius')) || 1000; // Default radius
+        let selectedUnit = 'meters';
 
         // Initialize the map
         const map = L.map('map').setView([lat, lon], 13);
@@ -79,6 +87,7 @@
         // Update radius dynamically
         const radiusSlider = document.getElementById('radiusSlider');
         const radiusValue = document.getElementById('radiusValue');
+        const unitSelect = document.getElementById('unitSelect');
 
         radiusSlider.value = initialRadius; // Set initial slider value
         radiusValue.textContent = initialRadius; // Display initial radius
@@ -95,6 +104,10 @@
             }).addTo(map);
         });
 
+        unitSelect.addEventListener('change', (e) => {
+            selectedUnit = e.target.value;
+        });
+
         // Add Geoman plugin for measuring tools
         map.pm.addControls({
             position: 'topleft',
@@ -108,6 +121,16 @@
             dragMode: true,
             removalMode: true
         });
+
+        // Function to convert distance based on selected unit
+        function convertDistance(distance) {
+            switch (selectedUnit) {
+                case 'kilometers': return (distance / 1000).toFixed(2) + ' km';
+                case 'feet': return (distance * 3.28084).toFixed(2) + ' ft';
+                case 'miles': return (distance * 0.000621371).toFixed(2) + ' mi';
+                default: return distance.toFixed(2) + ' m';
+            }
+        }
 
         // Function to dynamically display distances along polylines
         function showDistances(layer) {
@@ -139,7 +162,7 @@
                 L.marker(midpoint, {
                     icon: L.divIcon({
                         className: 'distance-label',
-                        html: `${distance.toFixed(2)} m`,
+                        html: convertDistance(distance),
                         iconSize: [50, 20],
                         iconAnchor: [25, 10]
                     })
