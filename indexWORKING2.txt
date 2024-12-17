@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.5</title>
+    <title>Where's Walter v.8</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -42,6 +42,15 @@
             border-radius: 3px;
             pointer-events: none;
         }
+        .total-length-label {
+            background-color: yellow;
+            border: 1px solid black;
+            padding: 3px 6px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 3px;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -72,6 +81,21 @@
         // Initialize the map
         const map = L.map('map').setView([lat, lon], 13);
 
+
+        // Add Geoman drawing tools
+        map.pm.addControls({
+        position: 'topleft',
+        drawMarker: true,      // Enable marker tool
+        drawPolyline: true,    // Enable polyline tool for measuring
+        drawPolygon: false,
+        drawCircle: true,
+        drawRectangle: false,
+        editMode: true,        // Enable editing of shapes
+        dragMode: true,
+        removalMode: true      // Enable deletion of shapes
+});
+
+
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -89,7 +113,6 @@
             radius: initialRadius // Initial radius
         }).addTo(map);
 
-        // Update radius dynamically
         const radiusSlider = document.getElementById('radiusSlider');
         const radiusValue = document.getElementById('radiusValue');
         const unitSelect = document.getElementById('unitSelect');
@@ -101,39 +124,24 @@
         radiusSlider.addEventListener('input', () => {
             const newRadius = parseFloat(radiusSlider.value);
             radiusValue.textContent = newRadius;
-            map.removeLayer(circle); // Remove old circle
+            map.removeLayer(circle);
             circle = L.circle([lat, lon], {
                 color: 'blue',
                 fillColor: '#add8e6',
                 fillOpacity: 0.5,
-                radius: newRadius // New radius
+                radius: newRadius
             }).addTo(map);
         });
 
         unitSelect.addEventListener('change', (e) => {
             selectedUnit = e.target.value;
-            drawnPolylines.forEach((polyline) => showDistances(polyline)); // Recalculate distances
+            drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
         redrawButton.addEventListener('click', () => {
             drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
-        // Add Geoman plugin for measuring tools
-        map.pm.addControls({
-            position: 'topleft',
-            drawMarker: true, // Allow adding new points
-            drawPolygon: true, // Enable area measuring
-            drawPolyline: true, // Enable distance measuring
-            drawCircle: true, // Allow circles for measurements
-            drawRectangle: true, // Enable rectangle drawing
-            cutPolygon: false,
-            editMode: true, // Allow editing existing shapes
-            dragMode: true,
-            removalMode: true
-        });
-
-        // Function to convert distance based on selected unit
         function convertDistance(distance) {
             switch (selectedUnit) {
                 case 'kilometers': return (distance / 1000).toFixed(2) + ' km';
@@ -143,26 +151,24 @@
             }
         }
 
-        // Function to dynamically display distances along polylines
         function showDistances(layer) {
             let latlngs = layer.getLatLngs();
+            let totalDistance = 0;
 
-            // Flatten nested latlngs array
             if (latlngs.length > 0 && Array.isArray(latlngs[0])) {
                 latlngs = latlngs[0];
             }
 
-            // Clear existing distance labels
             map.eachLayer((l) => {
-                if (l.options.icon && l.options.icon.options.className === 'distance-label') {
+                if (l.options.icon && (l.options.icon.options.className === 'distance-label' || l.options.icon.options.className === 'total-length-label')) {
                     map.removeLayer(l);
                 }
             });
 
             for (let i = 1; i < latlngs.length; i++) {
                 const distance = latlngs[i].distanceTo(latlngs[i - 1]);
+                totalDistance += distance;
 
-                // Add distance label at the midpoint
                 const midpoint = L.latLng(
                     (latlngs[i].lat + latlngs[i - 1].lat) / 2,
                     (latlngs[i].lng + latlngs[i - 1].lng) / 2
@@ -177,9 +183,19 @@
                     })
                 }).addTo(map);
             }
+
+            // Display total distance at the center of the polyline
+            const center = latlngs[Math.floor(latlngs.length / 2)];
+            L.marker(center, {
+                icon: L.divIcon({
+                    className: 'total-length-label',
+                    html: `Total: ${convertDistance(totalDistance)}`,
+                    iconSize: [100, 25],
+                    iconAnchor: [50, 12]
+                })
+            }).addTo(map);
         }
 
-        // Event: Show dynamic distances on Polyline creation
         map.on('pm:create', (e) => {
             if (e.shape === 'Line') {
                 drawnPolylines.push(e.layer);
@@ -191,11 +207,10 @@
             }
         });
 
-        // Recalculate distances on edit
         map.on('pm:edit', (e) => {
             e.layers.eachLayer((layer) => {
                 if (layer instanceof L.Polyline) {
-                    setTimeout(() => showDistances(layer), 100); // Ensure recalculation after editing
+                    setTimeout(() => showDistances(layer), 100);
                 }
             });
         });
