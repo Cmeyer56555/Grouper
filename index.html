@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.2</title>
+    <title>Where's Walter v.3</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -111,36 +111,45 @@
 
         // Function to dynamically display distances along polylines
         function showDistances(layer) {
-            const latlngs = layer.getLatLngs();
-            let totalDistance = 0;
+            let latlngs = layer.getLatLngs();
 
-            // Iterate over points in the polyline
-            latlngs.forEach((latlng, i) => {
-                if (i > 0) {
-                    const distance = latlng.distanceTo(latlngs[i - 1]);
-                    totalDistance += distance;
+            // Flatten nested latlngs array
+            if (latlngs.length > 0 && Array.isArray(latlngs[0])) {
+                latlngs = latlngs[0];
+            }
 
-                    // Add distance label at the midpoint
-                    const midpoint = L.latLng(
-                        (latlng.lat + latlngs[i - 1].lat) / 2,
-                        (latlng.lng + latlngs[i - 1].lng) / 2
-                    );
-
-                    L.marker(midpoint, {
-                        icon: L.divIcon({
-                            className: 'distance-label',
-                            html: `${distance.toFixed(2)} m`,
-                            iconSize: [50, 20],
-                            iconAnchor: [25, 10]
-                        })
-                    }).addTo(map);
+            // Clear existing distance labels
+            map.eachLayer((l) => {
+                if (l.options.icon && l.options.icon.options.className === 'distance-label') {
+                    map.removeLayer(l);
                 }
             });
+
+            let totalDistance = 0;
+            for (let i = 1; i < latlngs.length; i++) {
+                const distance = latlngs[i].distanceTo(latlngs[i - 1]);
+                totalDistance += distance;
+
+                // Add distance label at the midpoint
+                const midpoint = L.latLng(
+                    (latlngs[i].lat + latlngs[i - 1].lat) / 2,
+                    (latlngs[i].lng + latlngs[i - 1].lng) / 2
+                );
+
+                L.marker(midpoint, {
+                    icon: L.divIcon({
+                        className: 'distance-label',
+                        html: `${distance.toFixed(2)} m`,
+                        iconSize: [50, 20],
+                        iconAnchor: [25, 10]
+                    })
+                }).addTo(map);
+            }
         }
 
         // Event: Show dynamic distances on Polyline creation
         map.on('pm:create', (e) => {
-            if (e.shape === 'Polyline') {
+            if (e.shape === 'Line') {
                 showDistances(e.layer);
             }
         });
