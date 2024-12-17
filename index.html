@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.6</title>
+    <title>Where's Walter v.7</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -80,6 +80,21 @@
 
         // Initialize the map
         const map = L.map('map').setView([lat, lon], 13);
+
+
+        // Add Geoman drawing tools
+        map.pm.addControls({
+        position: 'topleft',
+        drawMarker: true,      // Enable marker tool
+        drawPolyline: true,    // Enable polyline tool for measuring
+        drawPolygon: false,
+        drawCircle: false,
+        drawRectangle: false,
+        editMode: true,        // Enable editing of shapes
+        dragMode: true,
+        removalMode: true      // Enable deletion of shapes
+});
+
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
