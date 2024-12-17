@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.7</title>
+    <title>Where's Walter v.1</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -10,9 +10,6 @@
     <!-- Leaflet Geoman Plugin for Drawing Tools -->
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css" />
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.min.js"></script>
-    <!-- Leaflet-Measure Path Fixed Links -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.css" />
-    <script src="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.min.js"></script>
     <style>
         body, html {
             margin: 0;
@@ -90,31 +87,33 @@
             }).addTo(map);
         });
 
-        // Add Geoman plugin for drawing tools
+        // Add Geoman plugin for measuring tools
         map.pm.addControls({
             position: 'topleft',
             drawMarker: true, // Allow adding new points
-            drawPolygon: false,
-            drawPolyline: true, // Enable line drawing for measuring
-            drawCircle: false,
-            drawRectangle: false,
+            drawPolygon: true, // Enable area measuring
+            drawPolyline: true, // Enable distance measuring
+            drawCircle: true, // Allow circles for measurements
+            drawRectangle: true, // Enable rectangle drawing
             cutPolygon: false,
             editMode: true, // Allow editing existing shapes
             dragMode: true,
             removalMode: true
         });
 
-        // Add Leaflet.Measure for interactive measuring tool
-        const measureControl = new L.Control.Measure({
-            position: 'topright',
-            primaryLengthUnit: 'meters',
-            secondaryLengthUnit: 'kilometers',
-            primaryAreaUnit: 'sqmeters',
-            secondaryAreaUnit: 'sqkilometers',
-            activeColor: '#ff0000',
-            completedColor: '#00ff00'
+        // Event: Show measurement details
+        map.on('pm:create', (e) => {
+            if (e.shape === 'Polyline' || e.shape === 'Polygon') {
+                const layer = e.layer;
+                const latlngs = layer.getLatLngs();
+                let totalDistance = 0;
+                for (let i = 1; i < latlngs[0].length; i++) {
+                    totalDistance += latlngs[0][i - 1].distanceTo(latlngs[0][i]);
+                }
+                const message = e.shape === 'Polyline' ? `Distance: ${totalDistance.toFixed(2)} meters` : 'Area calculated!';
+                alert(message);
+            }
         });
-        map.addControl(measureControl);
     </script>
 </body>
 </html>
