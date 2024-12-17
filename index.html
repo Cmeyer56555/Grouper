@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.5</title>
+    <title>Where's Walter v.6</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <!-- Leaflet Geoman Plugin for Distance Measuring -->
+    <!-- Leaflet Geoman Plugin for Drawing Tools -->
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css" />
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.min.js"></script>
+    <!-- Leaflet.Measure plugin -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-measure/3.1.0/leaflet-measure.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-measure/3.1.0/leaflet-measure.min.js"></script>
     <style>
         body, html {
             margin: 0;
@@ -101,52 +104,17 @@
             removalMode: true
         });
 
-        // Function to calculate and display distances at each vertex
-        function calculateVertexDistances(layer) {
-            const latlngs = layer.getLatLngs();
-            let totalDistance = 0;
-            latlngs.forEach((latlng, index) => {
-                if (index > 0) {
-                    const distance = latlngs[index - 1].distanceTo(latlng);
-                    totalDistance += distance;
-
-                    // Add a distance marker at this vertex
-                    const midpoint = L.latLng(
-                        (latlngs[index - 1].lat + latlng.lat) / 2,
-                        (latlngs[index - 1].lng + latlng.lng) / 2
-                    );
-
-                    L.marker(midpoint, {
-                        icon: L.divIcon({
-                            className: 'distance-label',
-                            html: `${distance.toFixed(2)} m`,
-                            iconSize: [50, 20],
-                            iconAnchor: [25, 10]
-                        })
-                    }).addTo(map);
-                }
-            });
-        }
-
-        // Event: When a new line is created
-        map.on('pm:create', (e) => {
-            if (e.shape === 'Line') {
-                const layer = e.layer;
-                calculateVertexDistances(layer); // Calculate and display distances
-            } else if (e.shape === 'Marker') {
-                // For new points, add a popup
-                e.layer.bindPopup(`New Point: ${e.layer.getLatLng().lat}, ${e.layer.getLatLng().lng}`).openPopup();
-            }
+        // Add Leaflet.Measure for interactive measuring tool
+        const measureControl = new L.Control.Measure({
+            position: 'topright',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'sqkilometers',
+            activeColor: '#ff0000',
+            completedColor: '#00ff00'
         });
-
-        // Allow editing of shapes
-        map.on('pm:edit', (e) => {
-            e.layers.eachLayer((layer) => {
-                if (layer instanceof L.Polyline) {
-                    calculateVertexDistances(layer); // Recalculate distances on edit
-                }
-            });
-        });
+        map.addControl(measureControl);
     </script>
 </body>
 </html>
