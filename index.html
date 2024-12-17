@@ -67,7 +67,7 @@
             <option value="miles">Miles</option>
         </select>
         <label for="offsetSlider">Label Offset:</label>
-        <input type="range" id="offsetSlider" min="0" max="0.0005" step="0.00001" value="0.00005">
+        <input type="range" id="offsetSlider" min="0" max="0.005" step="0.0001" value="0.00005">
         <span id="offsetValue">0.00005</span>
         <button id="redrawButton">Redraw Distances</button>
     </div>
@@ -80,6 +80,7 @@
         const initialRadius = parseFloat(urlParams.get('radius')) || 1000; // Default radius
         let selectedUnit = 'meters';
         let offsetFactor = parseFloat(document.getElementById('offsetSlider').value); // Default offset
+        let dynamicOffset = offsetFactor;
         const drawnPolylines = []; // Store drawn polylines for recalculation
 
         // Initialize the map
@@ -105,14 +106,14 @@
 
         // Add a marker for the center point
         const marker = L.marker([lat, lon]).addTo(map);
-        marker.bindPopup(`<b>Center Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`); // Popup hidden by default
+        marker.bindPopup(`<b>Center Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`);
 
         // Add a circle for the uncertainty radius
         let circle = L.circle([lat, lon], {
             color: 'blue',
             fillColor: '#add8e6',
             fillOpacity: 0.5,
-            radius: initialRadius // Initial radius
+            radius: initialRadius
         }).addTo(map);
 
         const radiusSlider = document.getElementById('radiusSlider');
@@ -152,6 +153,14 @@
             drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
+        // Adjust offset dynamically with zoom level
+        map.on('zoomend', () => {
+            const zoomLevel = map.getZoom();
+            const zoomScale = Math.pow(2, 13 - zoomLevel);
+            dynamicOffset = offsetFactor * zoomScale;
+            drawnPolylines.forEach((polyline) => showDistances(polyline));
+        });
+
         function convertDistance(distance) {
             switch (selectedUnit) {
                 case 'kilometers': return (distance / 1000).toFixed(2) + ' km';
@@ -180,8 +189,8 @@
                 totalDistance += distance;
 
                 const midpoint = L.latLng(
-                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + offsetFactor,
-                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + offsetFactor
+                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + dynamicOffset,
+                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + dynamicOffset
                 );
 
                 L.marker(midpoint, {
