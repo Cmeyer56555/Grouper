@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.6</title>
+    <title>Where's Walter v.5</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -23,6 +23,9 @@
             padding: 10px;
             background-color: #f9f9f9;
             border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         #map {
             flex: 1;
@@ -54,6 +57,7 @@
             <option value="feet">Feet</option>
             <option value="miles">Miles</option>
         </select>
+        <button id="redrawButton">Redraw Distances</button>
     </div>
     <div id="map"></div>
     <script>
@@ -89,6 +93,7 @@
         const radiusSlider = document.getElementById('radiusSlider');
         const radiusValue = document.getElementById('radiusValue');
         const unitSelect = document.getElementById('unitSelect');
+        const redrawButton = document.getElementById('redrawButton');
 
         radiusSlider.value = initialRadius; // Set initial slider value
         radiusValue.textContent = initialRadius; // Display initial radius
@@ -108,6 +113,10 @@
         unitSelect.addEventListener('change', (e) => {
             selectedUnit = e.target.value;
             drawnPolylines.forEach((polyline) => showDistances(polyline)); // Recalculate distances
+        });
+
+        redrawButton.addEventListener('click', () => {
+            drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
         // Add Geoman plugin for measuring tools
