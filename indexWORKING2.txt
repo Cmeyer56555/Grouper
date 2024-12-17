@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.6</title>
+    <title>Where's Walter v.5</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -175,10 +175,6 @@
             if (e.shape === 'Line') {
                 drawnPolylines.push(e.layer);
                 showDistances(e.layer);
-            }
-            if (e.shape === 'Marker') {
-                const { lat, lng } = e.layer.getLatLng();
-                e.layer.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lng.toFixed(5)}`).openPopup();
             }
         });
 
