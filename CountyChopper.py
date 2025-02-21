@@ -4,10 +4,24 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 from tqdm import tqdm
 import re
+import argparse
+from pathlib import Path
+
+def arg_setup():
+    # set up argument parser
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", "--input", required=False, \
+        help="Input directory path for a single CSV file.")
+    ap.add_argument("-o", "--out", required=False, \
+        help="Output directory path for multiple CSV files.")
+    ap.add_argument("-v", "--verbose", action="store_true", \
+        help="Detailed output.")
+    args = vars(ap.parse_args())
+    return args
+
 
 # Function to normalize county names
 def normalize_county_name(county_name):
-    print('in normalize_county_name')
     if isinstance(county_name, str):
         county_name = county_name.lower().strip()
         county_name = re.sub(r'(county|co\.?|[\?\.])$', '', county_name).strip()
@@ -89,18 +103,31 @@ def sanitize_filename(filename, replacement=''):
     return filename
 
 def split_csv_by_state():
-    Tk().withdraw()
-    print('in split_csv_by_state')
+    args = arg_setup()
 
-    input_csv = askopenfilename(title="Select the CSV file", filetypes=[("CSV files", "*.csv")])
-    if not input_csv:
-        print("No file selected. Exiting.")
-        return
+    if args['input']:
+        #print('input path:', args['input'])
+        input_csv = Path(args['input']).resolve()
+    else:
+        # 
+        Tk().withdraw()
+        input_csv = askopenfilename(title="Select the CSV file", filetypes=[("CSV files", "*.csv")])
+        if not input_csv:
+            print("No file selected. Exiting.")
+            return
 
-    # Prompt user for output directory
-    output_dir = input("Enter the directory where output files should be saved (or press Enter for default): ").strip()
+    print('input_csv:', input_csv)
+
+    if args['out']:
+        print('output path:', args['out'])
+        output_dir = Path(args['out']).resolve()
+    else:
+        # Prompt user for output directory
+        output_dir = input("Enter the directory where output files should be saved (or press Enter for default): ").strip()
+    
     if not output_dir:
-        output_dir = f"{state_name.lower()}_counties"
+        #output_dir = f"{state_name.lower()}_counties"
+        output_dir = "chopper_output_counties"
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -128,7 +155,7 @@ def split_csv_by_state():
         raise ValueError("The CSV file must contain 'stateProvince', 'county', and 'collectionCode' columns.")
 
     # Run the pre-check for missing collectionCode
-    data = count_null_collectioncode(data)
+    #data = count_null_collectioncode(data)
 
     data['normalized_county'] = data['county'].apply(normalize_county_name)
 
@@ -151,16 +178,11 @@ def split_csv_by_state():
     unique_counties = state_data['normalized_county'].nunique()
     #print('county')
 
-    #TEST hardcode path
-    output_dir = 'out'
-
     for county, county_data in tqdm(state_data.groupby('normalized_county'), total=unique_counties, desc=f"Processing {state_name} Counties"):
-        print('county:', county)
-        print('county_data:', county_data)
         output_filename = f"{state_name}_{county}.csv"
         output_filename = sanitize_filename(output_filename, replacement='-')
         output_path = os.path.join(output_dir, output_filename)
-        print('output_path:',output_path)
+        #print('output_path:',output_path)
         county_data.to_csv(output_path, index=False)
 
     print(f"Files created in directory: {output_dir}")
