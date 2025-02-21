@@ -11,7 +11,8 @@ georeferenceSourcesBlacklist: GEOLocate Batch Processing Tool
 georeferenceRemarksBlacklist: 
 
 # Records with this coordinate uncertainty threshold (set to any integer value, e.g., 10000) are filtered out.
-coordinateUncertaintyThreshold: 10000
+#coordinateUncertaintyThreshold: 10000
+# seems to be unused: coordinateUncertaintyThreshold
 
 # Enable or disable filtering for records with null values in 'coordinateUncertaintyInMeters' field
 filterCoordinateUncertaintyNull: true
@@ -22,7 +23,8 @@ filterGeoreferencedBy: False
 filterGeoreferenceRemarks: False
 
 # Enable or disable filtering for records where both 'georeferencedBy' AND 'georeferenceRemarks' are null
-filterGeoreferencedByAndRemarksNull: true
+#filterGeoreferencedByAndRemarksNull: true
+# seems filterGeoreferencedByAndRemarksNull is not used
 
 # State to process
 state: Texas
