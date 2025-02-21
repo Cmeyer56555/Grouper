@@ -2,7 +2,7 @@ eventdate_tolerance=3
 recordnumber_tolerance=50
 similarity_threshold=95
 min_size=2
-allowed_institutions=BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB,LL,TEX
+allowed_collections=BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB,LL,TEX
 
 handle_null_recordnumber=inf  # Treat null recordNumber "0" for ignore, "inf" for always fail
 handle_null_eventdate=inf   # Treat null eventDate "0" for ignore, "inf" for always fail
@@ -15,7 +15,6 @@ institutionCode
 collectionCode
 catalogNumber
 recordedBy
-associatedCollectors
 recordNumber
 eventDate
 habitat

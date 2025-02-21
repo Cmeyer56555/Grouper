@@ -14,6 +14,27 @@ def normalize_county_name(county_name):
     else:
         return ''
 
+# Function to count null collectionCodes and suggest substitution
+def count_null_collectioncode(df):
+    missing_collectioncode = df['collectionCode'].isna() | (df['collectionCode'] == '')
+    null_count = missing_collectioncode.sum()
+
+    if null_count > 0:
+        substitute_counts = df.loc[missing_collectioncode, 'institutionCode'].value_counts()
+        print(f"\nNumber of records with null or empty 'collectionCode': {null_count}")
+        print("Potential substitutions using 'institutionCode':")
+        print(substitute_counts)
+
+        # Ask user if they want to make the substitution
+        choice = input("\nWould you like to substitute missing 'collectionCode' values with 'institutionCode'? (yes/no): ").strip().lower()
+        if choice == 'yes':
+            df.loc[missing_collectioncode, 'collectionCode'] = df.loc[missing_collectioncode, 'institutionCode']
+            print("Substitution applied.\n")
+        else:
+            print("No changes made.\n")
+
+    return df
+
 # Function to read configurations from Chopper_Config.txt in the script folder
 def load_configurations():
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -23,43 +44,19 @@ def load_configurations():
         print("Configuration file 'Chopper_Config.txt' not found in script directory.")
         return None
 
-    whitelist = set()
-    blacklist = set()
-    georeference_sources_blacklist = set()
-    georeference_verification_status_blacklist = set()
-    georeference_remarks_blacklist = set()  # New blacklist for georeferenceRemarks
+    collection_whitelist = set()
+    collection_blacklist = set()
     counties = set()
     state_name = None
-    coordinate_uncertainty_threshold = 10000  # Default value
-    filter_georeferenced_by = True  # Default: apply filter
-    filter_georeference_remarks = True  # Default: apply filter
-    filter_coordinate_uncertainty_null = True  # Default: apply filter
-    filter_georeferenced_by_and_remarks_null = True  # Default: apply filter
     in_county_section = False
 
     with open(config_file, 'r') as file:
         for line in file:
             line = line.strip()
-            if line.startswith("whitelist:"):
-                whitelist.update(map(str.strip, line.split(":", 1)[1].split(',')))
-            elif line.startswith("blacklist:"):
-                blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
-            elif line.startswith("georeferenceSourcesBlacklist:"):
-                georeference_sources_blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
-            elif line.startswith("coordinateUncertaintyThreshold:"):
-                coordinate_uncertainty_threshold = int(line.split(":", 1)[1].strip())
-            elif line.startswith("filterGeoreferencedBy:"):
-                filter_georeferenced_by = line.split(":", 1)[1].strip().lower() == 'true'
-            elif line.startswith("filterGeoreferenceRemarks:"):
-                filter_georeference_remarks = line.split(":", 1)[1].strip().lower() == 'true'
-            elif line.startswith("filterCoordinateUncertaintyNull:"):
-                filter_coordinate_uncertainty_null = line.split(":", 1)[1].strip().lower() == 'true'
-            elif line.startswith("filterGeoreferencedByAndRemarksNull:"):
-                filter_georeferenced_by_and_remarks_null = line.split(":", 1)[1].strip().lower() == 'true'
-            elif line.startswith("georeferenceVerificationStatusBlacklist:"):
-                georeference_verification_status_blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
-            elif line.startswith("georeferenceRemarksBlacklist:"):  # New blacklist for georeferenceRemarks
-                georeference_remarks_blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
+            if line.startswith("collectionWhitelist:"):
+                collection_whitelist.update(map(str.strip, line.split(":", 1)[1].split(',')))
+            elif line.startswith("collectionBlacklist:"):
+                collection_blacklist.update(map(str.strip, line.split(":", 1)[1].split(',')))
             elif line.startswith("state:"):
                 state_name = line.split(":", 1)[1].strip()
             elif line.startswith("counties:"):
@@ -67,10 +64,7 @@ def load_configurations():
             elif in_county_section and line:
                 counties.add(normalize_county_name(line))
 
-    return (whitelist, blacklist, georeference_sources_blacklist, 
-            georeference_verification_status_blacklist, georeference_remarks_blacklist, counties, state_name, 
-            coordinate_uncertainty_threshold, filter_georeferenced_by, filter_georeference_remarks,
-            filter_coordinate_uncertainty_null, filter_georeferenced_by_and_remarks_null)
+    return collection_whitelist, collection_blacklist, counties, state_name
 
 def split_csv_by_state():
     Tk().withdraw()
@@ -80,88 +74,55 @@ def split_csv_by_state():
         print("No file selected. Exiting.")
         return
 
+    # Prompt user for output directory
+    output_dir = input("Enter the directory where output files should be saved (or press Enter for default): ").strip()
+    if not output_dir:
+        output_dir = f"{state_name.lower()}_counties"
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    print(f"Output files will be saved in: {output_dir}")
+
     # Load configurations from Chopper_Config.txt
     config = load_configurations()
     if not config:
         return
 
-    (whitelist, blacklist, georeference_sources_blacklist, 
-    georeference_verification_status_blacklist, georeference_remarks_blacklist, county_list, state_name, 
-    coordinate_uncertainty_threshold, filter_georeferenced_by, 
-    filter_georeference_remarks, filter_coordinate_uncertainty_null, filter_georeferenced_by_and_remarks_null) = config
+    collection_whitelist, collection_blacklist, county_list, state_name = config
 
     if not state_name:
         print("No state specified in the configuration file. Exiting.")
         return
 
     try:
-        data = pd.read_csv(input_csv, encoding='ISO-8859-1', on_bad_lines='skip', low_memory=False)
+        data = pd.read_csv(input_csv, encoding='ISO-8859-1', dtype=str, on_bad_lines='skip', low_memory=False)
     except (UnicodeDecodeError, pd.errors.ParserError) as e:
         print(f"Error reading the file: {e}")
         return
 
-    if 'stateProvince' not in data.columns or 'county' not in data.columns or 'institutionCode' not in data.columns or 'locality' not in data.columns:
-        raise ValueError("The CSV file must contain 'stateProvince', 'county', 'institutionCode', and 'locality' columns.")
+    if 'stateProvince' not in data.columns or 'county' not in data.columns or 'collectionCode' not in data.columns:
+        raise ValueError("The CSV file must contain 'stateProvince', 'county', and 'collectionCode' columns.")
+
+    # Run the pre-check for missing collectionCode
+    data = count_null_collectioncode(data)
 
     data['normalized_county'] = data['county'].apply(normalize_county_name)
 
-    # Apply whitelist/blacklist filter for institutionCode
-    data['institutionCode'] = data['institutionCode'].astype(str)
+    # Apply whitelist/blacklist filter for collectionCode
+    data['collectionCode'] = data['collectionCode'].astype(str)
     
     # Separate out records that are whitelisted
-    whitelist_data = data[data['institutionCode'].isin(whitelist)]
+    whitelist_data = data[data['collectionCode'].isin(collection_whitelist)]
 
-    # Exclude records with institutionCode on the blacklist
-    data = data[~data['institutionCode'].isin(blacklist)]
-
-    # Include records with null locality only if institutionCode is in the whitelist
-    data_with_locality = data[data['locality'].notnull()]
-    data_null_locality = data[data['locality'].isnull() & data['institutionCode'].isin(whitelist)]
-    filtered_data = pd.concat([data_with_locality, data_null_locality])
-
-    # Apply coordinateUncertaintyInMeters filter
-    filtered_data = filtered_data[
-        (filtered_data['coordinateUncertaintyInMeters'] < coordinate_uncertainty_threshold)
-    ]
-
-    # Apply filter to exclude records with null CoordinateUncertainty if enabled
-    if filter_coordinate_uncertainty_null:
-        filtered_data = filtered_data[filtered_data['coordinateUncertaintyInMeters'].notnull()]
-
-    # Apply georeferencedBY and georeferenceRemarks filters if toggled on in the config
-    if filter_georeferenced_by:
-        filtered_data = filtered_data[filtered_data['georeferencedBy'].notnull()]
-
-    if filter_georeference_remarks:
-        filtered_data = filtered_data[filtered_data['georeferenceRemarks'].notnull()]
-
-    # Apply the filter that excludes records if both georeferencedBy and georeferenceRemarks are null
-    if filter_georeferenced_by_and_remarks_null:
-        filtered_data = filtered_data[
-            ~((filtered_data['georeferencedBy'].isnull()) & (filtered_data['georeferenceRemarks'].isnull()))
-        ]
-
-    # Apply georeferenceSourcesBlacklist filter
-    filtered_data = filtered_data[~filtered_data['georeferenceSources'].isin(georeference_sources_blacklist)]
-
-    # Apply georeferenceVerificationStatusBlacklist filter
-    if 'georeferenceVerificationStatus' in filtered_data.columns:
-        filtered_data = filtered_data[~filtered_data['georeferenceVerificationStatus'].isin(georeference_verification_status_blacklist)]
-
-    # Apply georeferenceRemarksBlacklist filter - substring search
-    if 'georeferenceRemarks' in filtered_data.columns:
-        for remark in georeference_remarks_blacklist:
-            filtered_data = filtered_data[~filtered_data['georeferenceRemarks'].str.contains(remark, case=False, na=False)]
+    # Exclude records with collectionCode on the blacklist
+    data = data[~data['collectionCode'].isin(collection_blacklist)]
 
     # Combine the filtered data with the whitelisted data that bypasses all filters
-    final_data = pd.concat([whitelist_data, filtered_data])
+    final_data = pd.concat([whitelist_data, data])
 
     # Filter for entries only in the selected state and the counties in the list
     state_data = final_data[(final_data['stateProvince'].str.lower() == state_name.lower()) & (final_data['normalized_county'].isin(county_list))]
-
-    output_dir = f'{state_name.lower()}_counties'
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
 
     unique_counties = state_data['normalized_county'].nunique()
 

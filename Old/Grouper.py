@@ -8,6 +8,7 @@ from fuzzywuzzy import fuzz
 from datetime import datetime
 import time
 import sys
+import re
 
 # Function to display the custom fish progress bar
 def fish_progress_bar(iterable, total=None, desc="Processing"):
@@ -31,22 +32,81 @@ def fish_progress_bar(iterable, total=None, desc="Processing"):
     
     sys.stdout.write('\n')  # New line when complete
 
+# Function to extract and normalize compass directions from the locality string
+def extract_compass_direction(locality):
+    if not isinstance(locality, str):  # Ensure locality is a string
+        return None
+    
+    compass_patterns = {
+        'N': r'\b[Nn]orth\b|\b[Nn]\b',
+        'NE': r'\b[Nn]orth[eE]ast\b|\b[Nn][Ee]\b',
+        'E': r'\b[Ee]ast\b|\b[Ee]\b',
+        'SE': r'\b[Ss]outh[eE]ast\b|\b[Ss][Ee]\b',
+        'S': r'\b[Ss]outh\b|\b[Ss]\b',
+        'SW': r'\b[Ss]outh[wW]est\b|\b[Ss][Ww]\b',
+        'W': r'\b[Ww]est\b|\b[Ww]\b',
+        'NW': r'\b[Nn]orth[wW]est\b|\b[Nn][Ww]\b'
+    }
+    
+    for direction, pattern in compass_patterns.items():
+        if re.search(pattern, locality):
+            return direction
+    return None
+
+# Function to extract and normalize distances from the locality string
+def extract_distance(locality):
+    if not isinstance(locality, str):  # Ensure locality is a string
+        return None, None
+    
+    # Regular expression to find distances with units like km, miles, meters, etc.
+    distance_pattern = r'(\d+(\.\d+)?)\s*(km|kilometers|miles|mi|meters|m|feet|ft|yards|yd)'
+    
+    match = re.search(distance_pattern, locality)
+    if match:
+        # Extract the number and unit, and normalize the unit
+        distance_value = float(match.group(1))
+        unit = match.group(3).lower()
+        
+        if unit in ['kilometers', 'km']:
+            unit = 'km'
+        elif unit in ['miles', 'mi']:
+            unit = 'miles'
+        elif unit in ['meters', 'm']:
+            unit = 'm'
+        elif unit in ['feet', 'ft']:
+            unit = 'ft'
+        elif unit in ['yards', 'yd']:
+            unit = 'yd'
+        
+        return distance_value, unit
+    return None, None
+
 # Function to calculate similarity between two text fields
-def compare_fields(field1, field2, method='fuzzy', threshold=80):
+def compare_fields(field1, field2, method='fuzzy', threshold=80, compass1=None, compass2=None, distance1=None, distance2=None):
+    locality_match = False
     if method == 'fuzzy':
-        return fuzz.token_sort_ratio(field1, field2) >= threshold
+        locality_match = fuzz.token_sort_ratio(field1, field2) >= threshold
     elif method == 'cosine':
         vectorizer = TfidfVectorizer().fit_transform([field1, field2])
         cosine_sim = cosine_similarity(vectorizer[0:1], vectorizer[1:2])
-        return cosine_sim[0][0] >= threshold / 100
-    else:
-        raise ValueError("Method should be 'fuzzy' or 'cosine'")
+        locality_match = cosine_sim[0][0] >= threshold / 100
+    
+    # Check if compass directions and distances match exactly
+    compass_match = compass1 == compass2
+    distance_match = distance1 == distance2
+    
+    return locality_match and compass_match and distance_match
 
-# Function to find potential duplicate records and group them into groups
+# Modify the find_potential_duplicates function to include compass and distance extraction
 def find_potential_duplicates(df, similarity_threshold, method='fuzzy'):
     groups = []
     group_id = 1
     assigned_groups = [-1] * len(df)  # Initialize all records as ungrouped
+    
+    # Add columns for compass direction and distance
+    df['compassDirection'] = None
+    df['distance'] = None
+    df['distanceUnit'] = None
     
     for i, row1 in fish_progress_bar(df.iterrows(), total=len(df), desc="Building groups"):
         if assigned_groups[i] != -1:  # Skip if this record has already been assigned a group
@@ -54,21 +114,43 @@ def find_potential_duplicates(df, similarity_threshold, method='fuzzy'):
         current_group = [i]  # Start a new group with this record
         assigned_groups[i] = group_id  # Assign group ID to this record
         
+        # Extract compass direction and distance for this record
+        compass1 = extract_compass_direction(row1['locality'])
+        distance1, unit1 = extract_distance(row1['locality'])
+        
+        # Save the extracted data to the DataFrame
+        df.at[i, 'compassDirection'] = compass1
+        df.at[i, 'distance'] = distance1
+        df.at[i, 'distanceUnit'] = unit1
+        
         for j, row2 in df.iterrows():
             if i >= j or assigned_groups[j] != -1:
                 continue  # Skip the same record or already assigned records
-            if compare_fields(row1['recordedBy'], row2['recordedBy'], method, similarity_threshold) and \
-               compare_fields(row1['locality'], row2['locality'], method, similarity_threshold):
-                current_group.append(j)
-                assigned_groups[j] = group_id  # Assign the same group ID to similar records
+            
+            # Extract compass direction and distance for the second record
+            compass2 = extract_compass_direction(row2['locality'])
+            distance2, unit2 = extract_distance(row2['locality'])
+            
+            # Only compare if both records have matching distance units
+            if unit1 == unit2:
+                if compare_fields(row1['locality'], row2['locality'], method, similarity_threshold,
+                                  compass1=compass1, compass2=compass2,
+                                  distance1=(distance1, unit1), distance2=(distance2, unit2)):
+                    current_group.append(j)
+                    assigned_groups[j] = group_id  # Assign the same group ID to similar records
+                    
+                    # Save the extracted data to the DataFrame
+                    df.at[j, 'compassDirection'] = compass2
+                    df.at[j, 'distance'] = distance2
+                    df.at[j, 'distanceUnit'] = unit2
         
         groups.append(current_group)  # Add the group to the list
         group_id += 1  # Increment the group ID for the next group
     
     return groups, assigned_groups
 
-# Function to assign sub-groups based on similar eventDate and recordNumber values
-def assign_sub_groups(df, eventdate_tolerance=3, recordnumber_tolerance=5, handle_null_recordnumber='0', handle_null_eventdate='0'):
+# Function to assign sub-groups based on similar eventDate, recordNumber, and habitat values
+def assign_sub_groups(df, eventdate_tolerance=3, recordnumber_tolerance=5, habitat_similarity_threshold=80, handle_null_recordnumber='0', handle_null_eventdate='0'):
     sub_groups = [-1] * len(df)
     sub_group_id = 1
     
@@ -112,15 +194,18 @@ def assign_sub_groups(df, eventdate_tolerance=3, recordnumber_tolerance=5, handl
                 else:
                     record_diff = abs(row1['recordNumber'] - row2['recordNumber'])
                 
-                # Check if both date and record number differences are within tolerance
-                if date_diff <= eventdate_tolerance and record_diff <= recordnumber_tolerance:
+                # Handle habitat similarity
+                habitat_similarity = fuzz.token_sort_ratio(row1['habitat'], row2['habitat']) if pd.notna(row1['habitat']) and pd.notna(row2['habitat']) else 0
+                habitat_match = habitat_similarity >= habitat_similarity_threshold
+                
+                # Check if both date, record number differences are within tolerance, and habitat is similar
+                if date_diff <= eventdate_tolerance and record_diff <= recordnumber_tolerance and habitat_match:
                     sub_group.append(j)
                     sub_groups[j] = sub_group_id
             
             sub_group_id += 1  # Increment sub-group ID for the next sub-group
     
     return sub_groups
-
 
 # Function to load the export configuration file from the script's location
 def load_export_config():
@@ -189,10 +274,18 @@ def count_allowed_institutions(df, allowed_institutions):
     
     return group_counts
 
-# Function to save filtered groups to a new CSV file with sorting by allowed institution counts
+# Modify the save_filtered_groups_to_csv function to include compassDirection and distance
 def save_filtered_groups_to_csv(input_filename, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_institutions):
     df['Group_ID'] = group_assignments  # Add the group ID to the DataFrame
     df['Sub_Group_ID'] = sub_group_assignments  # Add the sub-group ID to the DataFrame
+    
+    # Add compassDirection and distance to export_columns if not already included
+    if 'compassDirection' not in export_columns:
+        export_columns.append('compassDirection')
+    if 'distance' not in export_columns:
+        export_columns.append('distance')
+    if 'distanceUnit' not in export_columns:
+        export_columns.append('distanceUnit')
     
     # Filter to only include groups that have more than the specified number of records
     group_counts = df['Group_ID'].value_counts()
@@ -252,6 +345,7 @@ def main():
             # Read tolerances and thresholds from the configuration file
             eventdate_tolerance = int(config.get('eventdate_tolerance', 3))
             recordnumber_tolerance = int(config.get('recordnumber_tolerance', 5))
+            habitat_similarity_threshold = int(config.get('habitat_similarity_threshold', 80))
             similarity_threshold = int(config.get('similarity_threshold', 80))
             min_size = int(config.get('min_size', 2))
             allowed_institutions = config.get('allowed_institutions', '')  # Fetch allowed institutions
@@ -268,8 +362,8 @@ def main():
                 # Assign the 'Group_ID' column to the DataFrame before creating sub-groups
                 df['Group_ID'] = group_assignments
                 
-                # Assign sub-groups based on eventDate and recordNumber
-                sub_group_assignments = assign_sub_groups(df, eventdate_tolerance=eventdate_tolerance, recordnumber_tolerance=recordnumber_tolerance)
+                # Assign sub-groups based on eventDate, recordNumber, and habitat similarity
+                sub_group_assignments = assign_sub_groups(df, eventdate_tolerance=eventdate_tolerance, recordnumber_tolerance=recordnumber_tolerance, habitat_similarity_threshold=habitat_similarity_threshold)
                 
                 # Save the filtered groups to the CSV, using the input filename to create the output filename
                 save_filtered_groups_to_csv(csv_file, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_institutions)

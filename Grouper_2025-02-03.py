@@ -235,10 +235,10 @@ def load_export_config():
         print(f"Configuration file not found at {config_filename}.")
         return None, None
 
-# Function to filter groups based on allowed institutions
-def filter_by_institution(df, allowed_institutions):
-    allowed_institutions = [inst.strip() for inst in allowed_institutions.split(',')]
-    filtered_df = df.groupby('Group_ID').filter(lambda group: any(group['institutionCode'].isin(allowed_institutions)))
+# Function to filter groups based on allowed collection codes
+def filter_by_collection_code(df, allowed_collections):
+    allowed_collections = [coll.strip() for coll in allowed_collections.split(',')]
+    filtered_df = df.groupby('Group_ID').filter(lambda group: any(group['collectionCode'].isin(allowed_collections)))
     return filtered_df
 
 # Function to prompt user for folder selection and load all CSV files
@@ -261,21 +261,31 @@ def has_identical_coords(group):
     """Check if all records in the group have identical latitude and longitude."""
     return (group['decimalLatitude'].nunique() == 1) and (group['decimalLongitude'].nunique() == 1)
 
-# Function to count allowed institutions in each group
-def count_allowed_institutions(df, allowed_institutions):
-    """Count the number of records in each group that have institutionCode in the allowed list."""
-    allowed_institutions = [inst.strip() for inst in allowed_institutions.split(',')]
-    # Create a new column that checks if the institutionCode is in the allowed_institutions list
-    df['is_allowed_institution'] = df['institutionCode'].apply(lambda x: x in allowed_institutions)
+# Function to count allowed collections in each group
+def count_allowed_collections(df, allowed_collections):
+    """Count the number of records in each group that have collectionCode in the allowed list."""
+    allowed_collections = [coll.strip() for coll in allowed_collections.split(',')]
+    # Create a new column that checks if the collectionCode is in the allowed_collections list
+    df['is_allowed_collection'] = df['collectionCode'].apply(lambda x: x in allowed_collections)
     
-    # Group by 'Group_ID' and count the allowed institutionCode matches
-    group_counts = df.groupby('Group_ID')['is_allowed_institution'].sum().reset_index()
-    group_counts.rename(columns={'is_allowed_institution': 'allowed_institution_count'}, inplace=True)
+    # Group by 'Group_ID' and count the allowed collectionCode matches
+    group_counts = df.groupby('Group_ID')['is_allowed_collection'].sum().reset_index()
+    group_counts.rename(columns={'is_allowed_collection': 'allowed_collection_count'}, inplace=True)
     
     return group_counts
 
-# Modify the save_filtered_groups_to_csv function to include compassDirection and distance
-def save_filtered_groups_to_csv(input_filename, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_institutions):
+
+# Function to count decimalLatitude and decimalLongitude values in each group
+def count_coords(df):
+    """Count the number of unique decimalLatitude and decimalLongitude values in each group."""
+    coord_counts = df.groupby('Group_ID').agg(
+        decimalLatitude_count=('decimalLatitude', 'nunique'),
+        decimalLongitude_count=('decimalLongitude', 'nunique')
+    ).reset_index()
+    return coord_counts
+
+# Modify the save_filtered_groups_to_csv function to include compassDirection, distance, and coordinate counts
+def save_filtered_groups_to_csv(input_filename, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_collections):
     df['Group_ID'] = group_assignments  # Add the group ID to the DataFrame
     df['Sub_Group_ID'] = sub_group_assignments  # Add the sub-group ID to the DataFrame
     
@@ -286,6 +296,10 @@ def save_filtered_groups_to_csv(input_filename, df, group_assignments, sub_group
         export_columns.append('distance')
     if 'distanceUnit' not in export_columns:
         export_columns.append('distanceUnit')
+    if 'decimalLatitude_count' not in export_columns:
+        export_columns.append('decimalLatitude_count')
+    if 'decimalLongitude_count' not in export_columns:
+        export_columns.append('decimalLongitude_count')
     
     # Filter to only include groups that have more than the specified number of records
     group_counts = df['Group_ID'].value_counts()
@@ -300,25 +314,29 @@ def save_filtered_groups_to_csv(input_filename, df, group_assignments, sub_group
     # Filter out groups where all latitudes and longitudes are identical
     filtered_df = filtered_df.groupby('Group_ID').filter(lambda x: not has_identical_coords(x))
     
-    # Filter by allowed institutionCode
-    filtered_df = filter_by_institution(filtered_df, allowed_institutions)
+    # Filter by allowed collectionCode
+    filtered_df = filter_by_collection_code(filtered_df, allowed_collections)
     
     if not filtered_df.empty:
-        # Count the number of allowed institutions in each group
-        allowed_institution_counts = count_allowed_institutions(filtered_df, allowed_institutions)
+        # Count the number of allowed collections in each group
+        allowed_collection_counts = count_allowed_collections(filtered_df, allowed_collections)
+        
+        # Count the number of unique decimalLatitude and decimalLongitude values in each group
+        coord_counts = count_coords(filtered_df)
         
         # Merge the counts back to the filtered DataFrame
-        filtered_df = filtered_df.merge(allowed_institution_counts, on='Group_ID', how='left')
+        filtered_df = filtered_df.merge(allowed_collection_counts, on='Group_ID', how='left')
+        filtered_df = filtered_df.merge(coord_counts, on='Group_ID', how='left')
         
         # Reorder columns based on the configuration
         if export_columns:
-            filtered_df = filtered_df[export_columns + ['allowed_institution_count']]
+            filtered_df = filtered_df[export_columns + ['allowed_collection_count']]
         
-        # Sort by allowed institution count, then by Group_ID, Sub_Group_ID, and eventDate
+        # Sort by allowed collection count, then by Group_ID, Sub_Group_ID, and eventDate
         if 'eventDate' in filtered_df.columns:
-            filtered_df.sort_values(by=['allowed_institution_count', 'Group_ID', 'Sub_Group_ID', 'eventDate'], ascending=[False, True, True, True], inplace=True)
+            filtered_df.sort_values(by=['allowed_collection_count', 'Group_ID', 'Sub_Group_ID', 'eventDate'], ascending=[False, True, True, True], inplace=True)
         else:
-            filtered_df.sort_values(by=['allowed_institution_count', 'Group_ID', 'Sub_Group_ID'], ascending=[False, True, True], inplace=True)
+            filtered_df.sort_values(by=['allowed_collection_count', 'Group_ID', 'Sub_Group_ID'], ascending=[False, True, True], inplace=True)
         
         # Automatically create the output filename by appending "-groups.csv"
         output_filename = input_filename.replace('.csv', '-groups.csv')
@@ -326,6 +344,20 @@ def save_filtered_groups_to_csv(input_filename, df, group_assignments, sub_group
         # Save the filtered DataFrame to the output file
         filtered_df.to_csv(output_filename, index=False)
         print(f"Group data saved to {output_filename}")
+
+        # Save groups with 0 decimalLatitude_count and 0 decimalLongitude_count to an additional file
+        coge_groups = filtered_df[(filtered_df['decimalLatitude_count'] == 0) & (filtered_df['decimalLongitude_count'] == 0)]
+        if not coge_groups.empty:
+            coge_filename = input_filename.replace('.csv', '-CoGe.csv')
+            coge_groups.to_csv(coge_filename, index=False)
+            print(f"Groups with 0 decimalLatitude_count and 0 decimalLongitude_count saved to {coge_filename}")
+
+        # Save groups with 1 or more decimalLatitude_count or decimalLongitude_count to an additional file
+        manual_groups = filtered_df[(filtered_df['decimalLatitude_count'] > 0) | (filtered_df['decimalLongitude_count'] > 0)]
+        if not manual_groups.empty:
+            manual_filename = input_filename.replace('.csv', '-manual.csv')
+            manual_groups.to_csv(manual_filename, index=False)
+            print(f"Groups with 1 or more decimalLatitude_count or decimalLongitude_count saved to {manual_filename}")
     else:
         print(f"No groups found with more than {min_size} records and non-blank localities.")
 
@@ -348,7 +380,7 @@ def main():
             habitat_similarity_threshold = int(config.get('habitat_similarity_threshold', 80))
             similarity_threshold = int(config.get('similarity_threshold', 80))
             min_size = int(config.get('min_size', 2))
-            allowed_institutions = config.get('allowed_institutions', '')  # Fetch allowed institutions
+            allowed_collections = config.get('allowed_collections', '')  # Fetch allowed collections
             
             for csv_file in csv_files:
                 print(f"Processing file: {csv_file}")
@@ -366,7 +398,7 @@ def main():
                 sub_group_assignments = assign_sub_groups(df, eventdate_tolerance=eventdate_tolerance, recordnumber_tolerance=recordnumber_tolerance, habitat_similarity_threshold=habitat_similarity_threshold)
                 
                 # Save the filtered groups to the CSV, using the input filename to create the output filename
-                save_filtered_groups_to_csv(csv_file, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_institutions)
+                save_filtered_groups_to_csv(csv_file, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_collections)
                 
         except ValueError:
             print("Invalid input. Please check the configuration values in export_config.txt.")
