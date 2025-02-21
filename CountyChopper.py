@@ -19,7 +19,6 @@ def arg_setup():
     args = vars(ap.parse_args())
     return args
 
-
 # Function to normalize county names
 def normalize_county_name(county_name):
     if isinstance(county_name, str):
@@ -182,7 +181,6 @@ def split_csv_by_state():
         output_filename = f"{state_name}_{county}.csv"
         output_filename = sanitize_filename(output_filename, replacement='-')
         output_path = os.path.join(output_dir, output_filename)
-        #print('output_path:',output_path)
         county_data.to_csv(output_path, index=False)
 
     print(f"Files created in directory: {output_dir}")
