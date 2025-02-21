@@ -7,6 +7,7 @@ import re
 
 # Function to normalize county names
 def normalize_county_name(county_name):
+    print('in normalize_county_name')
     if isinstance(county_name, str):
         county_name = county_name.lower().strip()
         county_name = re.sub(r'(county|co\.?|[\?\.])$', '', county_name).strip()
@@ -16,6 +17,7 @@ def normalize_county_name(county_name):
 
 # Function to count null collectionCodes and suggest substitution
 def count_null_collectioncode(df):
+    print('in count_null_collectioncode')
     missing_collectioncode = df['collectionCode'].isna() | (df['collectionCode'] == '')
     null_count = missing_collectioncode.sum()
 
@@ -37,6 +39,7 @@ def count_null_collectioncode(df):
 
 # Function to read configurations from Chopper_Config.txt in the script folder
 def load_configurations():
+    print('in load_configurations')
     script_dir = os.path.dirname(os.path.realpath(__file__))
     config_file = os.path.join(script_dir, 'Chopper_Config.txt')
 
@@ -66,8 +69,28 @@ def load_configurations():
 
     return collection_whitelist, collection_blacklist, counties, state_name
 
+def sanitize_filename(filename, replacement=''):
+    """
+    Sanitizes a string to be safe for use as a filename.
+
+    Args:
+        filename (str): The filename to sanitize.
+        replacement (str, optional): The string to replace invalid characters with. Defaults to ''.
+
+    Returns:
+        str: The sanitized filename.
+    """
+    # Remove or replace invalid characters
+    filename = re.sub(r'[<>:"/\\|?*\x00-\x1F]', replacement, filename)
+    # Remove leading and trailing spaces
+    filename = filename.strip()
+    # Shorten filename if it exceeds 255 characters
+    filename = filename[:255]
+    return filename
+
 def split_csv_by_state():
     Tk().withdraw()
+    print('in split_csv_by_state')
 
     input_csv = askopenfilename(title="Select the CSV file", filetypes=[("CSV files", "*.csv")])
     if not input_csv:
@@ -122,13 +145,23 @@ def split_csv_by_state():
     final_data = pd.concat([whitelist_data, data])
 
     # Filter for entries only in the selected state and the counties in the list
-    state_data = final_data[(final_data['stateProvince'].str.lower() == state_name.lower()) & (final_data['normalized_county'].isin(county_list))]
+    #state_data = final_data[(final_data['stateProvince'].str.lower() == state_name.lower()) & (final_data['normalized_county'].isin(county_list))]
+    state_data = final_data
 
     unique_counties = state_data['normalized_county'].nunique()
+    #print('county')
+
+    #TEST hardcode path
+    output_dir = 'out'
 
     for county, county_data in tqdm(state_data.groupby('normalized_county'), total=unique_counties, desc=f"Processing {state_name} Counties"):
-        output_filename = os.path.join(output_dir, f"{state_name}_{county}.csv")
-        county_data.to_csv(output_filename, index=False)
+        print('county:', county)
+        print('county_data:', county_data)
+        output_filename = f"{state_name}_{county}.csv"
+        output_filename = sanitize_filename(output_filename, replacement='-')
+        output_path = os.path.join(output_dir, output_filename)
+        print('output_path:',output_path)
+        county_data.to_csv(output_path, index=False)
 
     print(f"Files created in directory: {output_dir}")
 
