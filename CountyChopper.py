@@ -52,7 +52,6 @@ def count_null_collectioncode(df):
 
 # Function to read configurations from Chopper_Config.txt in the script folder
 def load_configurations():
-    print('in load_configurations')
     script_dir = os.path.dirname(os.path.realpath(__file__))
     config_file = os.path.join(script_dir, 'Chopper_Config.txt')
 
