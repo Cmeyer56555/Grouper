@@ -10,6 +10,17 @@ import time
 import sys
 import re
 
+def arg_setup():
+    # set up argument parser
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", "--input", required=True, \
+        help="Input directory path for a single TAB file.")
+    ap.add_argument("-v", "--verbose", action="store_true", \
+        help="Detailed output.")
+    args = vars(ap.parse_args())
+    return args
+
+    
 # Function to display the custom fish progress bar
 def fish_progress_bar(iterable, total=None, desc="Processing"):
     total = total or len(iterable)  # Set total if not provided
@@ -28,7 +39,7 @@ def fish_progress_bar(iterable, total=None, desc="Processing"):
         sys.stdout.flush()
         
         yield item  # Yield the item in the iterable to keep the functionality intact
-        time.sleep(0.1)  # Small delay to simulate work (remove in actual use)
+        #time.sleep(0.1)  # Small delay to simulate work (remove in actual use)
     
     sys.stdout.write('\n')  # New line when complete
 
@@ -329,8 +340,9 @@ def save_filtered_groups_to_csv(input_filename, df, group_assignments, sub_group
         filtered_df = filtered_df.merge(coord_counts, on='Group_ID', how='left')
         
         # Reorder columns based on the configuration
-        if export_columns:
-            filtered_df = filtered_df[export_columns + ['allowed_collection_count']]
+        #TODO - make an arg over-ride for this
+        #if export_columns:
+        #    filtered_df = filtered_df[export_columns + ['allowed_collection_count']]
         
         # Sort by allowed collection count, then by Group_ID, Sub_Group_ID, and eventDate
         if 'eventDate' in filtered_df.columns:
@@ -379,7 +391,7 @@ def main():
             recordnumber_tolerance = int(config.get('recordnumber_tolerance', 5))
             habitat_similarity_threshold = int(config.get('habitat_similarity_threshold', 80))
             similarity_threshold = int(config.get('similarity_threshold', 80))
-            min_size = int(config.get('min_size', 2))
+            min_size = int(config.get('min_size', 0))
             allowed_collections = config.get('allowed_collections', '')  # Fetch allowed collections
             
             for csv_file in csv_files:

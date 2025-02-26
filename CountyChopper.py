@@ -30,7 +30,6 @@ def normalize_county_name(county_name):
 
 # Function to count null collectionCodes and suggest substitution
 def count_null_collectioncode(df):
-    print('in count_null_collectioncode')
     missing_collectioncode = df['collectionCode'].isna() | (df['collectionCode'] == '')
     null_count = missing_collectioncode.sum()
 
