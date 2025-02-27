@@ -469,8 +469,126 @@ def main():
     else:
         print("No valid CSV files to process.")
 
+import threading
+import os
+import time
+import queue
 
-def main_multi():
+def process_multiple_csv_files(csv_files, num_threads=4):
+
+    # Load the configuration and fields from export_config.txt
+    config, export_columns = load_export_config()
+    
+    if config is None or export_columns is None:
+        return
+    
+    # get command line args
+    args = arg_setup()
+    print(args['input'])
+    input_path = args['input']
+    if input_path: 
+        csv_files, folder_path = load_csv_files_from_folder(folder_path=input_path)
+    else:
+        # Load CSV files from the selected folder
+        csv_files, folder_path = load_csv_files_from_folder()
+    #print(csv_files, folder_path)
+    
+
+    # Read tolerances and thresholds from the configuration file
+    eventdate_tolerance = int(config.get('eventdate_tolerance', 3))
+    recordnumber_tolerance = int(config.get('recordnumber_tolerance', 5))
+    habitat_similarity_threshold = int(config.get('habitat_similarity_threshold', 80))
+    similarity_threshold = int(config.get('similarity_threshold', 80))
+    min_size = int(config.get('min_size', 0))
+    allowed_collections = config.get('allowed_collections', '')  # Fetch allowed collections
+
+
+
+    """
+    Process multiple CSV files in parallel using threading.
+    
+    Args:
+        csv_files (list): List of CSV file paths to process
+        num_threads (int): Number of threads to use
+    """
+    # Create a queue to hold the files
+    file_queue = queue.Queue()
+    
+    # Put all files in the queue
+    for file in csv_files:
+        file_queue.put(file)
+    
+    # Define the worker function
+    def worker():
+        while not file_queue.empty():
+            try:
+                # Get a file from the queue
+                file = file_queue.get(block=False)
+                print(f"Processing {file} in thread {threading.current_thread().name}")
+                
+                # Process the file using your existing function
+                #process_csv(file)
+                process_csv(csv_file=file,
+                    config=config,
+                    export_columns=export_columns,
+                    eventdate_tolerance=eventdate_tolerance, 
+                    recordnumber_tolerance=recordnumber_tolerance, 
+                    habitat_similarity_threshold=habitat_similarity_threshold,
+                    similarity_threshold=similarity_threshold,
+                    min_size=min_size,
+                    allowed_collections=allowed_collections)
+                
+                # Mark the task as done
+                file_queue.task_done()
+            except queue.Empty:
+                break
+            except Exception as e:
+                print(f"Error processing {file}: {e}")
+                file_queue.task_done()
+    
+    # Create and start the threads
+    threads = []
+    for i in range(min(num_threads, len(csv_files))):
+        thread = threading.Thread(target=worker, name=f"Thread-{i+1}")
+        thread.daemon = True
+        thread.start()
+        threads.append(thread)
+    
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+    
+    print("All files have been processed!")
+
+def main_multi():   
+    # Measure the execution time
+    start_time = time.time()
+
+    # Load the configuration and fields from export_config.txt
+    config, export_columns = load_export_config()
+    
+    if config is None or export_columns is None:
+        return
+    
+    # get command line args
+    args = arg_setup()
+    print(args['input'])
+    input_path = args['input']
+    if input_path: 
+        csv_files, folder_path = load_csv_files_from_folder(folder_path=input_path)
+    else:
+        # Load CSV files from the selected folder
+        csv_files, folder_path = load_csv_files_from_folder()
+    #print(csv_files, folder_path)
+    
+
+    available_cores = mp.cpu_count()
+    num_threads = max(1, available_cores - 1)
+    process_multiple_csv_files(csv_files, num_threads=num_threads)
+    elapsed_time = time.time() - start_time
+    print(f"Execution completed in {elapsed_time:.2f} seconds")
+
+def main_multi_OLD():
     # Set up command line argument parsing if needed
     # args = arg_setup()
     
@@ -527,6 +645,6 @@ def main_multi():
 
 if __name__ == "__main__":
     # Ensure multiprocessing works correctly on all platforms
-    mp.freeze_support()
-    main()
-    #main_multi()
+    #mp.freeze_support()
+    #main()
+    main_multi()
