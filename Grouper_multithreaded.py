@@ -12,6 +12,8 @@ import re
 import multiprocessing as mp
 import argparse
 from tqdm import tqdm
+import threading
+import queue
 
 def arg_setup():
     # set up argument parser
@@ -469,10 +471,7 @@ def main():
     else:
         print("No valid CSV files to process.")
 
-import threading
-import os
-import time
-import queue
+
 
 def process_multiple_csv_files(csv_files, num_threads=4):
 
@@ -481,18 +480,7 @@ def process_multiple_csv_files(csv_files, num_threads=4):
     
     if config is None or export_columns is None:
         return
-    
-    # get command line args
-    args = arg_setup()
-    print(args['input'])
-    input_path = args['input']
-    if input_path: 
-        csv_files, folder_path = load_csv_files_from_folder(folder_path=input_path)
-    else:
-        # Load CSV files from the selected folder
-        csv_files, folder_path = load_csv_files_from_folder()
-    #print(csv_files, folder_path)
-    
+
 
     # Read tolerances and thresholds from the configuration file
     eventdate_tolerance = int(config.get('eventdate_tolerance', 3))
@@ -588,60 +576,6 @@ def main_multi():
     elapsed_time = time.time() - start_time
     print(f"Execution completed in {elapsed_time:.2f} seconds")
 
-def main_multi_OLD():
-    # Set up command line argument parsing if needed
-    # args = arg_setup()
-    
-    start_time = time.time()
-    
-    # Set up multiprocessing
-    num_cores = mp.cpu_count()
-    # Use one less than available to keep system responsive
-    num_processes = max(1, num_cores - 1)
-    pool = mp.Pool(processes=num_processes)
-    
-    # Create results directory
-    #results_dir = Path('BELS_Grouper_results')
-    #results_dir.mkdir(parents=True, exist_ok=True)
-    
-    print("Starting Grouper with multiprocessing")
-    
-    # Load the input file
-    csv_file = '/media/jbest/data3/BRIT_git/TORCH_georeferencing/data/Texas/panhandle/panhandle_test/occurrences_BELS_metrics.tab'
-    print(f"Loading data from {csv_file}")
-    df = pd.read_csv(csv_file, low_memory=False, sep='\t')
-    
-    # Get unique counties
-    counties = df['county'].unique()
-    print(f'Found {len(counties)} unique counties')
-    
-    # Create a list of county DataFrames with a progress bar
-    print("Preparing data for parallel processing...")
-    county_dfs = []
-    for county in tqdm(counties, desc="Splitting data by county"):
-        county_dfs.append(df[df['county'] == county].copy())
-    
-    try:
-        # Process counties in parallel with progress bar
-        print(f"Processing {len(county_dfs)} counties using {num_cores} CPU cores")
-        processed_dfs = list(tqdm(pool.imap(process_county, county_dfs), 
-                               total=len(county_dfs), 
-                               desc="Processing counties"))
-        
-        # Save results for each county with progress bar
-        print("Saving results...")
-        for df_county in tqdm(processed_dfs, desc="Saving results"):
-            save_county_results(df_county, results_dir)
-            
-    finally:
-        # Clean up
-        pool.close()
-        pool.join()
-    
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    
-    print(f"All counties processed successfully in {elapsed_time:.2f} seconds!")
 
 if __name__ == "__main__":
     # Ensure multiprocessing works correctly on all platforms
