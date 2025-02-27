@@ -10,18 +10,18 @@ import time
 import sys
 import re
 import multiprocessing as mp
+import argparse
 
 def arg_setup():
     # set up argument parser
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", required=True, \
-        help="Input directory path for a single TAB file.")
+    ap.add_argument("-i", "--input", required=False, \
+        help="Input directory path for CSV files.")
     ap.add_argument("-v", "--verbose", action="store_true", \
         help="Detailed output.")
     args = vars(ap.parse_args())
     return args
 
-    
 # Function to display the custom fish progress bar
 def fish_progress_bar(iterable, total=None, desc="Processing"):
     total = total or len(iterable)  # Set total if not provided
@@ -120,7 +120,8 @@ def find_potential_duplicates(df, similarity_threshold, method='fuzzy'):
     df['distance'] = None
     df['distanceUnit'] = None
     
-    for i, row1 in fish_progress_bar(df.iterrows(), total=len(df), desc="Building groups"):
+    #for i, row1 in fish_progress_bar(df.iterrows(), total=len(df), desc="Building groups"):
+    for i, row1 in df.iterrows():
         if assigned_groups[i] != -1:  # Skip if this record has already been assigned a group
             continue
         current_group = [i]  # Start a new group with this record
@@ -169,7 +170,8 @@ def assign_sub_groups(df, eventdate_tolerance=3, recordnumber_tolerance=5, habit
     # Convert recordNumber to numeric for comparison, setting non-convertible values to NaN
     df['recordNumber'] = pd.to_numeric(df['recordNumber'], errors='coerce')
     
-    for group_id in fish_progress_bar(df['Group_ID'].unique(), desc="Assigning sub-groups"):
+    #for group_id in fish_progress_bar(df['Group_ID'].unique(), desc="Assigning sub-groups"):
+    for group_id in df['Group_ID'].unique():
         group_df = df[df['Group_ID'] == group_id]
         for i, row1 in group_df.iterrows():
             if sub_groups[i] != -1:  # Skip if already assigned a sub-group
@@ -254,9 +256,11 @@ def filter_by_collection_code(df, allowed_collections):
     return filtered_df
 
 # Function to prompt user for folder selection and load all CSV files
-def load_csv_files_from_folder():
-    Tk().withdraw()  # Close the root window
-    folder_path = askdirectory()  # Ask user to select a folder
+def load_csv_files_from_folder(folder_path=None):
+    if not folder_path:    
+        Tk().withdraw()  # Close the root window
+        folder_path = askdirectory()  # Ask user to select a folder
+
     if folder_path:
         csv_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
         if csv_files:
@@ -382,8 +386,16 @@ def main():
     if config is None or export_columns is None:
         return
     
-    # Load CSV files from the selected folder
-    csv_files, folder_path = load_csv_files_from_folder()
+    # get command line args
+    args = arg_setup()
+    print(args['input'])
+    input_path = args['input']
+    if input_path: 
+        csv_files, folder_path = load_csv_files_from_folder(folder_path=input_path)
+    else:
+        # Load CSV files from the selected folder
+        csv_files, folder_path = load_csv_files_from_folder()
+    print(csv_files, folder_path)
     
     if csv_files:
         try:
@@ -438,19 +450,19 @@ def main_multi():
     print("Starting Grouper with multiprocessing")
     
     # Load the input file
-    csv_file = '/media/jbest/data3/BRIT_git/TORCH_georeferencing/data/Texas/panhandle/panhandle_test/occurrences_BELS_metrics.tab'
-    print(f"Loading data from {csv_file}")
-    df = pd.read_csv(c sv_file, low_memory=False, sep='\t')
+    #csv_file = '/media/jbest/data3/BRIT_git/TORCH_georeferencing/data/Texas/panhandle/panhandle_test/occurrences_BELS_metrics.tab'
+    #print(f"Loading data from {csv_file}")
+    #df = pd.read_csv(c sv_file, low_memory=False, sep='\t')
     
     # Get unique counties
-    counties = df['county'].unique()
-    print(f'Found {len(counties)} unique counties')
+    #counties = df['county'].unique()
+    #print(f'Found {len(counties)} unique counties')
     
     # Create a list of county DataFrames with a progress bar
-    print("Preparing data for parallel processing...")
-    county_dfs = []
-    for county in tqdm(counties, desc="Splitting data by county"):
-        county_dfs.append(df[df['county'] == county].copy())
+    #print("Preparing data for parallel processing...")
+    #county_dfs = []
+    #for county in tqdm(counties, desc="Splitting data by county"):
+    #    county_dfs.append(df[df['county'] == county].copy())
     
     try:
         # Process counties in parallel with progress bar
