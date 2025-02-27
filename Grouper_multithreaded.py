@@ -11,6 +11,7 @@ import sys
 import re
 import multiprocessing as mp
 import argparse
+from tqdm import tqdm
 
 def arg_setup():
     # set up argument parser
@@ -378,6 +379,33 @@ def save_filtered_groups_to_csv(input_filename, df, group_assignments, sub_group
     else:
         print(f"No groups found with more than {min_size} records and non-blank localities.")
 
+def process_csv(csv_file=None,
+    config=None,
+    export_columns=None,
+    eventdate_tolerance=None, 
+    recordnumber_tolerance=None, 
+    habitat_similarity_threshold=None,
+    similarity_threshold=None,
+    min_size=None,
+    allowed_collections=None):
+
+    print(f"Processing file: {csv_file}")
+
+    # Load the CSV file
+    df = pd.read_csv(csv_file, encoding='ISO-8859-1', low_memory=False)
+
+    # Find duplicate groups based on the user-defined similarity threshold
+    groups, group_assignments = find_potential_duplicates(df, similarity_threshold, method='fuzzy')
+
+    # Assign the 'Group_ID' column to the DataFrame before creating sub-groups
+    df['Group_ID'] = group_assignments
+
+    # Assign sub-groups based on eventDate, recordNumber, and habitat similarity
+    sub_group_assignments = assign_sub_groups(df, eventdate_tolerance=eventdate_tolerance, recordnumber_tolerance=recordnumber_tolerance, habitat_similarity_threshold=habitat_similarity_threshold)
+
+    # Save the filtered groups to the CSV, using the input filename to create the output filename
+    save_filtered_groups_to_csv(csv_file, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_collections)
+
 # Main function
 def main():
     # Load the configuration and fields from export_config.txt
@@ -395,7 +423,7 @@ def main():
     else:
         # Load CSV files from the selected folder
         csv_files, folder_path = load_csv_files_from_folder()
-    print(csv_files, folder_path)
+    #print(csv_files, folder_path)
     
     if csv_files:
         try:
@@ -408,6 +436,16 @@ def main():
             allowed_collections = config.get('allowed_collections', '')  # Fetch allowed collections
             
             for csv_file in csv_files:
+                process_csv(csv_file=csv_file,
+                    config=config,
+                    export_columns=export_columns,
+                    eventdate_tolerance=eventdate_tolerance, 
+                    recordnumber_tolerance=recordnumber_tolerance, 
+                    habitat_similarity_threshold=habitat_similarity_threshold,
+                    similarity_threshold=similarity_threshold,
+                    min_size=min_size,
+                    allowed_collections=allowed_collections)
+                """
                 print(f"Processing file: {csv_file}")
                 
                 # Load the CSV file
@@ -424,6 +462,7 @@ def main():
                 
                 # Save the filtered groups to the CSV, using the input filename to create the output filename
                 save_filtered_groups_to_csv(csv_file, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_collections)
+                """
                 
         except ValueError:
             print("Invalid input. Please check the configuration values in export_config.txt.")
@@ -450,19 +489,19 @@ def main_multi():
     print("Starting Grouper with multiprocessing")
     
     # Load the input file
-    #csv_file = '/media/jbest/data3/BRIT_git/TORCH_georeferencing/data/Texas/panhandle/panhandle_test/occurrences_BELS_metrics.tab'
-    #print(f"Loading data from {csv_file}")
-    #df = pd.read_csv(c sv_file, low_memory=False, sep='\t')
+    csv_file = '/media/jbest/data3/BRIT_git/TORCH_georeferencing/data/Texas/panhandle/panhandle_test/occurrences_BELS_metrics.tab'
+    print(f"Loading data from {csv_file}")
+    df = pd.read_csv(csv_file, low_memory=False, sep='\t')
     
     # Get unique counties
-    #counties = df['county'].unique()
-    #print(f'Found {len(counties)} unique counties')
+    counties = df['county'].unique()
+    print(f'Found {len(counties)} unique counties')
     
     # Create a list of county DataFrames with a progress bar
-    #print("Preparing data for parallel processing...")
-    #county_dfs = []
-    #for county in tqdm(counties, desc="Splitting data by county"):
-    #    county_dfs.append(df[df['county'] == county].copy())
+    print("Preparing data for parallel processing...")
+    county_dfs = []
+    for county in tqdm(counties, desc="Splitting data by county"):
+        county_dfs.append(df[df['county'] == county].copy())
     
     try:
         # Process counties in parallel with progress bar
@@ -490,3 +529,4 @@ if __name__ == "__main__":
     # Ensure multiprocessing works correctly on all platforms
     mp.freeze_support()
     main()
+    #main_multi()
