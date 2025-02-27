@@ -143,7 +143,8 @@ def split_csv_by_state():
         return
 
     try:
-        data = pd.read_csv(input_csv, encoding='ISO-8859-1', dtype=str, on_bad_lines='skip', low_memory=False)
+        #data = pd.read_csv(input_csv, encoding='ISO-8859-1', dtype=str, on_bad_lines='skip', low_memory=False)
+        data = pd.read_csv(input_csv, on_bad_lines='skip', low_memory=False)
     except (UnicodeDecodeError, pd.errors.ParserError) as e:
         print(f"Error reading the file: {e}")
         return
