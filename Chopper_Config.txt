@@ -1,7 +1,7 @@
 
 
 #Records from these collections bypass all filters.
-collectionWhitelist: BRIT,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB,LL,TEX,FWNC
+collectionWhitelist: BRIT,SMU,ACU,BCNWR,HSU,TAC,TCSW,NLU,VDB,LL,TEX,FWNC
 
 #Records from these collections are always filtered out.
 collectionBlacklist: NY,MO,HUH
