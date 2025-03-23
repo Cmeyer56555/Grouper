@@ -215,7 +215,7 @@ document.getElementById('copyButton').addEventListener('click', () => {
     const center = marker.getLatLng();
     const radius = circle.getRadius();
 
-    const output = `${center.lat.toFixed(5)} ${center.lng.toFixed(5)} WGS84 ${radius.toFixed(0)}`;
+    const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
 
     navigator.clipboard.writeText(output).then(() => {
         alert("Copied to clipboard:\n" + output);
@@ -224,6 +224,7 @@ document.getElementById('copyButton').addEventListener('click', () => {
         console.error(err);
     });
 });
+
 
     </script>
 </body>
