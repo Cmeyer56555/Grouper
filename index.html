@@ -211,20 +211,20 @@
             });
         });
 
-        // NEW: Copy to Clipboard Button Functionality
-        document.getElementById('copyButton').addEventListener('click', () => {
-            const center = marker.getLatLng();
-            const radius = circle.getRadius();
+document.getElementById('copyButton').addEventListener('click', () => {
+    const center = marker.getLatLng();
+    const radius = circle.getRadius();
 
-            const info = `Latitude: ${center.lat.toFixed(5)}, Longitude: ${center.lng.toFixed(5)}, Radius: ${radius.toFixed(2)} meters`;
+    const output = `${center.lat.toFixed(5)} ${center.lng.toFixed(5)} WGS84 ${radius.toFixed(0)}`;
 
-            navigator.clipboard.writeText(info).then(() => {
-                alert("Location info copied to clipboard:\n" + info);
-            }).catch(err => {
-                alert("Failed to copy to clipboard.");
-                console.error(err);
-            });
-        });
+    navigator.clipboard.writeText(output).then(() => {
+        alert("Copied to clipboard:\n" + output);
+    }).catch(err => {
+        alert("Failed to copy to clipboard.");
+        console.error(err);
+    });
+});
+
     </script>
 </body>
 </html>
