@@ -257,6 +257,13 @@
             });
         });
 
+        map.on('pm:vertexchanged', (e) => {
+            const layer = e.layer;
+            if (layer instanceof L.Polyline) {
+                showDistances(layer);
+            }
+        });
+
         document.getElementById('copyButton').addEventListener('click', () => {
             let allMarkers = [];
             let allCircles = [];
