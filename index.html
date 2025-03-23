@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.10</title>
+    <title>Where's Walter v.11</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -257,12 +257,15 @@
             });
         });
 
-        map.on('pm:vertexchanged', (e) => {
-            const layer = e.layer;
-            if (layer instanceof L.Polyline) {
-                showDistances(layer);
-            }
-        });
+map.on('pm:vertexchanged', (e) => {
+    const changedLatLng = e.latlng;
+    drawnPolylines.forEach((polyline) => {
+        const latlngs = polyline.getLatLngs().flat();
+        if (latlngs.some(ll => ll.equals(changedLatLng))) {
+            showDistances(polyline);
+        }
+    });
+});
 
         document.getElementById('copyButton').addEventListener('click', () => {
             let allMarkers = [];
