@@ -4,6 +4,7 @@
     <title>Where's Walter v.10</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <!-- Leaflet Core -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
@@ -12,7 +13,7 @@
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css" />
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.min.js"></script>
 
-    <!-- Path Drag Plugin (for dragging circles) -->
+    <!-- Path Drag Plugin (must come BEFORE circles are created) -->
     <script src="https://unpkg.com/leaflet-path-drag@0.0.7/Leaflet.Path.Drag.js"></script>
 
     <style>
@@ -116,6 +117,7 @@
         // Initial marker + circle
         const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
         marker.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)}`);
+
         const circle = L.circle([lat, lon], {
             color: 'blue',
             fillColor: '#add8e6',
@@ -144,16 +146,7 @@
         radiusSlider.addEventListener('input', () => {
             const newRadius = parseFloat(radiusSlider.value);
             radiusValue.textContent = newRadius;
-            map.removeLayer(circle);
-            const newCircle = L.circle([lat, lon], {
-                color: 'blue',
-                fillColor: '#add8e6',
-                fillOpacity: 0.5,
-                radius: newRadius
-            }).addTo(map);
-            newCircle.dragging = new L.Handler.PathDrag(newCircle);
-            newCircle.dragging.enable();
-            markerCircleLinks.set(marker, newCircle);
+            circle.setRadius(newRadius);
         });
 
         unitSelect.addEventListener('change', (e) => {
@@ -227,6 +220,7 @@
                 const { lat, lng } = m.getLatLng();
                 m.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lng.toFixed(5)}`).openPopup();
 
+                // Try to link to a nearby circle
                 let closestCircle = null;
                 let minDist = Infinity;
                 map.eachLayer(l => {
