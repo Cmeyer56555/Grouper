@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.5</title>
+    <title>Where's Walter v.10</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -54,7 +54,7 @@
     </style>
 </head>
 <body>
-    <!-- Controls for adjusting radius and offset -->
+    <!-- Controls for adjusting radius -->
     <div id="controls">
         <label for="radiusSlider">Adjust Radius (meters):</label>
         <input type="range" id="radiusSlider" min="100" max="10000" step="100" value="1000">
@@ -66,49 +66,40 @@
             <option value="feet">Feet</option>
             <option value="miles">Miles</option>
         </select>
-        <label for="offsetSlider">Label Offset:</label>
-        <input type="range" id="offsetSlider" min="0" max="0.005" step="0.0001" value="0.00005">
-        <span id="offsetValue">0.00005</span>
         <button id="redrawButton">Redraw Distances</button>
+        <button id="copyButton">Copy Lat/Lon/Radius</button> <!-- New Copy Button -->
     </div>
     <div id="map"></div>
     <script>
         // Extract parameters from the URL
         const urlParams = new URLSearchParams(window.location.search);
-        const lat = parseFloat(urlParams.get('lat')) || 0; // Default to 0 if not provided
-        const lon = parseFloat(urlParams.get('lon')) || 0; // Default to 0 if not provided
-        const initialRadius = parseFloat(urlParams.get('radius')) || 1000; // Default radius
+        const lat = parseFloat(urlParams.get('lat')) || 0;
+        const lon = parseFloat(urlParams.get('lon')) || 0;
+        const initialRadius = parseFloat(urlParams.get('radius')) || 1000;
         let selectedUnit = 'meters';
-        let offsetFactor = parseFloat(document.getElementById('offsetSlider').value); // Default offset
-        let dynamicOffset = offsetFactor;
-        const drawnPolylines = []; // Store drawn polylines for recalculation
+        const drawnPolylines = [];
 
-        // Initialize the map
         const map = L.map('map').setView([lat, lon], 13);
 
-        // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
         }).addTo(map);
 
-        // Add Geoman tools
         map.pm.addControls({
             position: 'topleft',
-            drawMarker: true,      // Enable marker tool
-            drawPolyline: true,    // Enable polyline tool for measuring
-            drawCircle: true,      // Enable circle tool for radius
-            drawPolygon: false,    // Disable polygon tool
-            drawRectangle: false,  // Disable rectangle tool
-            editMode: true,        // Allow editing of shapes
+            drawMarker: true,
+            drawPolyline: true,
+            drawCircle: true,
+            drawPolygon: false,
+            drawRectangle: false,
+            editMode: true,
             dragMode: true,
-            removalMode: true      // Allow shape removal
+            removalMode: true
         });
 
-        // Add a marker for the center point
         const marker = L.marker([lat, lon]).addTo(map);
         marker.bindPopup(`<b>Center Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`);
 
-        // Add a circle for the uncertainty radius
         let circle = L.circle([lat, lon], {
             color: 'blue',
             fillColor: '#add8e6',
@@ -120,11 +111,9 @@
         const radiusValue = document.getElementById('radiusValue');
         const unitSelect = document.getElementById('unitSelect');
         const redrawButton = document.getElementById('redrawButton');
-        const offsetSlider = document.getElementById('offsetSlider');
-        const offsetValue = document.getElementById('offsetValue');
 
-        radiusSlider.value = initialRadius; // Set initial slider value
-        radiusValue.textContent = initialRadius; // Display initial radius
+        radiusSlider.value = initialRadius;
+        radiusValue.textContent = initialRadius;
 
         radiusSlider.addEventListener('input', () => {
             const newRadius = parseFloat(radiusSlider.value);
@@ -138,26 +127,12 @@
             }).addTo(map);
         });
 
-        offsetSlider.addEventListener('input', () => {
-            offsetFactor = parseFloat(offsetSlider.value);
-            offsetValue.textContent = offsetFactor;
-            drawnPolylines.forEach((polyline) => showDistances(polyline));
-        });
-
         unitSelect.addEventListener('change', (e) => {
             selectedUnit = e.target.value;
             drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
         redrawButton.addEventListener('click', () => {
-            drawnPolylines.forEach((polyline) => showDistances(polyline));
-        });
-
-        // Adjust offset dynamically with zoom level
-        map.on('zoomend', () => {
-            const zoomLevel = map.getZoom();
-            const zoomScale = Math.pow(2, 13 - zoomLevel);
-            dynamicOffset = offsetFactor * zoomScale;
             drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
@@ -188,9 +163,12 @@
                 const distance = latlngs[i].distanceTo(latlngs[i - 1]);
                 totalDistance += distance;
 
+                const zoom = map.getZoom();
+                const offsetFactor = 0.00025 * (18 / zoom);
+
                 const midpoint = L.latLng(
-                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + dynamicOffset,
-                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + dynamicOffset
+                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + offsetFactor,
+                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + offsetFactor
                 );
 
                 L.marker(midpoint, {
@@ -230,6 +208,21 @@
                 if (layer instanceof L.Polyline) {
                     setTimeout(() => showDistances(layer), 100);
                 }
+            });
+        });
+
+        // NEW: Copy to Clipboard Button Functionality
+        document.getElementById('copyButton').addEventListener('click', () => {
+            const center = marker.getLatLng();
+            const radius = circle.getRadius();
+
+            const info = `Latitude: ${center.lat.toFixed(5)}, Longitude: ${center.lng.toFixed(5)}, Radius: ${radius.toFixed(2)} meters`;
+
+            navigator.clipboard.writeText(info).then(() => {
+                alert("Location info copied to clipboard:\n" + info);
+            }).catch(err => {
+                alert("Failed to copy to clipboard.");
+                console.error(err);
             });
         });
     </script>
