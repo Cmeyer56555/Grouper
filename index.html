@@ -4,18 +4,12 @@
     <title>Where's Walter v.10</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- Leaflet Core -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-
-    <!-- Geoman (drawing tools) -->
+    <!-- Leaflet Geoman Plugin for Drawing Tools -->
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css" />
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.min.js"></script>
-
-    <!-- Path Drag Plugin (must come BEFORE circles are created) -->
-    <script src="https://unpkg.com/leaflet-path-drag@0.0.7/Leaflet.Path.Drag.js"></script>
-
     <style>
         body, html {
             margin: 0;
@@ -42,6 +36,27 @@
         #map {
             flex: 1;
         }
+        label {
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .distance-label {
+            background-color: white;
+            border: 1px solid black;
+            padding: 2px 5px;
+            font-size: 12px;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+        .total-length-label {
+            background-color: yellow;
+            border: 1px solid black;
+            padding: 3px 6px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 3px;
+            pointer-events: none;
+        }
         #copyNotification {
             display: none;
             position: fixed;
@@ -58,6 +73,7 @@
     </style>
 </head>
 <body>
+    <!-- Controls -->
     <div id="controls">
         <label for="radiusSlider">Adjust Radius (meters):</label>
         <input type="range" id="radiusSlider" min="100" max="10000" step="100" value="1000">
@@ -73,15 +89,18 @@
         <button id="copyButton">Copy Lat/Lon/Radius</button>
     </div>
 
+    <!-- Info Panel -->
     <div id="infoPanel">
         <strong>Locality:</strong> <span id="localityDisplay">[not provided]</span><br>
         <strong>Date:</strong> <span id="dateDisplay">[not provided]</span>
     </div>
 
+    <!-- Map and Popup -->
     <div id="map"></div>
     <div id="copyNotification">Copied to clipboard</div>
 
     <script>
+        // Extract parameters from the URL
         const urlParams = new URLSearchParams(window.location.search);
         const lat = parseFloat(urlParams.get('lat')) || 0;
         const lon = parseFloat(urlParams.get('lon')) || 0;
@@ -94,7 +113,6 @@
 
         let selectedUnit = 'meters';
         const drawnPolylines = [];
-        const markerCircleLinks = new Map();
 
         const map = L.map('map').setView([lat, lon], 13);
 
@@ -114,26 +132,19 @@
             removalMode: true
         });
 
-        // Initial marker + circle
         const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
         marker.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)}`);
+        marker.on('dragend', (e) => {
+            const newLatLng = e.target.getLatLng();
+            e.target.setPopupContent(`Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)}`);
+        });
 
-        const circle = L.circle([lat, lon], {
+        let circle = L.circle([lat, lon], {
             color: 'blue',
             fillColor: '#add8e6',
             fillOpacity: 0.5,
             radius: initialRadius
         }).addTo(map);
-        circle.dragging = new L.Handler.PathDrag(circle);
-        circle.dragging.enable();
-        markerCircleLinks.set(marker, circle);
-
-        marker.on('dragend', (e) => {
-            const newLatLng = e.target.getLatLng();
-            e.target.setPopupContent(`Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)}`);
-            const linked = markerCircleLinks.get(e.target);
-            if (linked) linked.setLatLng(newLatLng);
-        });
 
         const radiusSlider = document.getElementById('radiusSlider');
         const radiusValue = document.getElementById('radiusValue');
@@ -146,7 +157,13 @@
         radiusSlider.addEventListener('input', () => {
             const newRadius = parseFloat(radiusSlider.value);
             radiusValue.textContent = newRadius;
-            circle.setRadius(newRadius);
+            map.removeLayer(circle);
+            circle = L.circle([lat, lon], {
+                color: 'blue',
+                fillColor: '#add8e6',
+                fillOpacity: 0.5,
+                radius: newRadius
+            }).addTo(map);
         });
 
         unitSelect.addEventListener('change', (e) => {
@@ -170,6 +187,7 @@
         function showDistances(layer) {
             let latlngs = layer.getLatLngs();
             let totalDistance = 0;
+
             if (latlngs.length > 0 && Array.isArray(latlngs[0])) {
                 latlngs = latlngs[0];
             }
@@ -183,10 +201,15 @@
             for (let i = 1; i < latlngs.length; i++) {
                 const distance = latlngs[i].distanceTo(latlngs[i - 1]);
                 totalDistance += distance;
+
+                const zoom = map.getZoom();
+                const offsetFactor = 0.00025 * (18 / zoom);
+
                 const midpoint = L.latLng(
-                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + 0.00025,
-                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + 0.00025
+                    (latlngs[i].lat + latlngs[i - 1].lat) / 2 + offsetFactor,
+                    (latlngs[i].lng + latlngs[i - 1].lng) / 2 + offsetFactor
                 );
+
                 L.marker(midpoint, {
                     icon: L.divIcon({
                         className: 'distance-label',
@@ -219,32 +242,19 @@
                 m.dragging.enable();
                 const { lat, lng } = m.getLatLng();
                 m.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lng.toFixed(5)}`).openPopup();
-
-                // Try to link to a nearby circle
-                let closestCircle = null;
-                let minDist = Infinity;
-                map.eachLayer(l => {
-                    if (l instanceof L.Circle) {
-                        const d = m.getLatLng().distanceTo(l.getLatLng());
-                        if (d < 10 && d < minDist) {
-                            closestCircle = l;
-                            minDist = d;
-                        }
-                    }
-                });
-                if (closestCircle) markerCircleLinks.set(m, closestCircle);
-
                 m.on('dragend', (ev) => {
                     const newLatLng = ev.target.getLatLng();
                     ev.target.setPopupContent(`Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)}`);
-                    const linked = markerCircleLinks.get(ev.target);
-                    if (linked) linked.setLatLng(newLatLng);
                 });
             }
-            if (e.shape === 'Circle') {
-                e.layer.dragging = new L.Handler.PathDrag(e.layer);
-                e.layer.dragging.enable();
-            }
+        });
+
+        map.on('pm:edit', (e) => {
+            e.layers.eachLayer((layer) => {
+                if (layer instanceof L.Polyline) {
+                    setTimeout(() => showDistances(layer), 100);
+                }
+            });
         });
 
         document.getElementById('copyButton').addEventListener('click', () => {
@@ -252,8 +262,12 @@
             let allCircles = [];
 
             map.eachLayer(layer => {
-                if (layer instanceof L.Marker) allMarkers.push(layer);
-                if (layer instanceof L.Circle) allCircles.push(layer);
+                if (layer instanceof L.Marker) {
+                    allMarkers.push(layer);
+                }
+                if (layer instanceof L.Circle) {
+                    allCircles.push(layer);
+                }
             });
 
             if (allMarkers.length !== 1 || allCircles.length !== 1) {
