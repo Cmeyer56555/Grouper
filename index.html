@@ -95,7 +95,7 @@
         <strong>Date:</strong> <span id="dateDisplay">[not provided]</span>
     </div>
 
-    <!-- Map -->
+    <!-- Map and Popup -->
     <div id="map"></div>
     <div id="copyNotification">Copied to clipboard</div>
 
@@ -132,8 +132,12 @@
             removalMode: true
         });
 
-        const marker = L.marker([lat, lon]).addTo(map);
-        marker.bindPopup(`<b>Center Point</b><br>Latitude: ${lat}<br>Longitude: ${lon}`);
+        const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+        marker.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)}`);
+        marker.on('dragend', (e) => {
+            const newLatLng = e.target.getLatLng();
+            e.target.setPopupContent(`Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)}`);
+        });
 
         let circle = L.circle([lat, lon], {
             color: 'blue',
@@ -233,8 +237,15 @@
                 showDistances(e.layer);
             }
             if (e.shape === 'Marker') {
-                const { lat, lng } = e.layer.getLatLng();
-                e.layer.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lng.toFixed(5)}`).openPopup();
+                const m = e.layer;
+                m.options.draggable = true;
+                m.dragging.enable();
+                const { lat, lng } = m.getLatLng();
+                m.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lng.toFixed(5)}`).openPopup();
+                m.on('dragend', (ev) => {
+                    const newLatLng = ev.target.getLatLng();
+                    ev.target.setPopupContent(`Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)}`);
+                });
             }
         });
 
@@ -246,44 +257,40 @@
             });
         });
 
-        // Copy button with tab-delimited output + notification
-document.getElementById('copyButton').addEventListener('click', () => {
-    let allMarkers = [];
-    let allCircles = [];
+        document.getElementById('copyButton').addEventListener('click', () => {
+            let allMarkers = [];
+            let allCircles = [];
 
-    map.eachLayer(layer => {
-        if (layer instanceof L.Marker) {
-            allMarkers.push(layer);
-        }
-        if (layer instanceof L.Circle) {
-            allCircles.push(layer);
-        }
-    });
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    allMarkers.push(layer);
+                }
+                if (layer instanceof L.Circle) {
+                    allCircles.push(layer);
+                }
+            });
 
-    if (allMarkers.length !== 1 || allCircles.length !== 1) {
-        alert(`You must have exactly 1 marker and 1 circle.\n\nCurrently found:\nMarkers: ${allMarkers.length}\nCircles: ${allCircles.length}`);
-        return;
-    }
+            if (allMarkers.length !== 1 || allCircles.length !== 1) {
+                alert(`You must have exactly 1 marker and 1 circle.\n\nCurrently found:\nMarkers: ${allMarkers.length}\nCircles: ${allCircles.length}`);
+                return;
+            }
 
-    const center = allMarkers[0].getLatLng();
-    const radius = allCircles[0].getRadius();
+            const center = allMarkers[0].getLatLng();
+            const radius = allCircles[0].getRadius();
+            const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
 
-    const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
-
-    navigator.clipboard.writeText(output).then(() => {
-        const note = document.getElementById('copyNotification');
-        note.textContent = "Copied to clipboard";
-        note.style.display = "block";
-        setTimeout(() => {
-            note.style.display = "none";
-        }, 2000);
-    }).catch(err => {
-        console.error(err);
-        alert("Failed to copy to clipboard.");
-    });
-});
-
-
+            navigator.clipboard.writeText(output).then(() => {
+                const note = document.getElementById('copyNotification');
+                note.textContent = "Copied to clipboard";
+                note.style.display = "block";
+                setTimeout(() => {
+                    note.style.display = "none";
+                }, 2000);
+            }).catch(err => {
+                console.error(err);
+                alert("Failed to copy to clipboard.");
+            });
+        });
     </script>
 </body>
 </html>
