@@ -247,38 +247,30 @@
         });
 
         // Copy button with tab-delimited output + notification
-        document.getElementById('copyButton').addEventListener('click', () => {
-    const outputLines = [];
+document.getElementById('copyButton').addEventListener('click', () => {
+    let allMarkers = [];
+    let allCircles = [];
 
     map.eachLayer(layer => {
-        if (layer instanceof L.Marker && layer !== marker) { // exclude the initial fixed marker
-            const latlng = layer.getLatLng();
-            let matchedRadius = null;
-
-            // Try to find the nearest circle (assumes one circle per marker)
-            map.eachLayer(other => {
-                if (other instanceof L.Circle) {
-                    const dist = latlng.distanceTo(other.getLatLng());
-                    if (dist < 10) { // within 10 meters is close enough
-                        matchedRadius = other.getRadius();
-                    }
-                }
-            });
-
-            if (matchedRadius !== null) {
-                outputLines.push(`${latlng.lat.toFixed(5)}\t${latlng.lng.toFixed(5)}\tWGS84\t${matchedRadius.toFixed(0)}`);
-            }
+        if (layer instanceof L.Marker) {
+            allMarkers.push(layer);
+        }
+        if (layer instanceof L.Circle) {
+            allCircles.push(layer);
         }
     });
 
-    if (outputLines.length === 0) {
-        alert("No user-drawn marker + circle pairs found.");
+    if (allMarkers.length !== 1 || allCircles.length !== 1) {
+        alert(`You must have exactly 1 marker and 1 circle.\n\nCurrently found:\nMarkers: ${allMarkers.length}\nCircles: ${allCircles.length}`);
         return;
     }
 
-    const finalOutput = outputLines.join('\n');
+    const center = allMarkers[0].getLatLng();
+    const radius = allCircles[0].getRadius();
 
-    navigator.clipboard.writeText(finalOutput).then(() => {
+    const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
+
+    navigator.clipboard.writeText(output).then(() => {
         const note = document.getElementById('copyNotification');
         note.textContent = "Copied to clipboard";
         note.style.display = "block";
@@ -290,6 +282,7 @@
         alert("Failed to copy to clipboard.");
     });
 });
+
 
     </script>
 </body>
