@@ -119,14 +119,17 @@
         // Initial marker and circle
         const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
         marker.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)}`);
-        marker.on('dragend', (e) => {
-            const newLatLng = e.target.getLatLng();
-            e.target.setPopupContent(`Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)}`);
-            const linked = markerCircleLinks.get(e.target);
-            if (linked) {
-                linked.setLatLng(newLatLng);
-            }
-        });
+marker.on('dragend', (e) => {
+    const newLatLng = e.target.getLatLng();
+    e.target.setPopupContent(`Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)}`);
+
+    // Move linked circle (if any)
+    const linked = markerCircleLinks.get(e.target);
+    if (linked) {
+        linked.setLatLng(newLatLng);
+    }
+});
+
 
         let circle = L.circle([lat, lon], {
             color: 'blue',
