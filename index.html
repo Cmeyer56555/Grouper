@@ -27,6 +27,12 @@
             align-items: center;
             gap: 10px;
         }
+        #infoPanel {
+            padding: 10px;
+            background: #eef;
+            font-family: sans-serif;
+            border-bottom: 1px solid #ccc;
+        }
         #map {
             flex: 1;
         }
@@ -67,7 +73,7 @@
     </style>
 </head>
 <body>
-    <!-- Controls for adjusting radius -->
+    <!-- Controls -->
     <div id="controls">
         <label for="radiusSlider">Adjust Radius (meters):</label>
         <input type="range" id="radiusSlider" min="100" max="10000" step="100" value="1000">
@@ -83,6 +89,13 @@
         <button id="copyButton">Copy Lat/Lon/Radius</button>
     </div>
 
+    <!-- Info Panel -->
+    <div id="infoPanel">
+        <strong>Locality:</strong> <span id="localityDisplay">[not provided]</span><br>
+        <strong>Date:</strong> <span id="dateDisplay">[not provided]</span>
+    </div>
+
+    <!-- Map -->
     <div id="map"></div>
     <div id="copyNotification">Copied to clipboard</div>
 
@@ -92,6 +105,12 @@
         const lat = parseFloat(urlParams.get('lat')) || 0;
         const lon = parseFloat(urlParams.get('lon')) || 0;
         const initialRadius = parseFloat(urlParams.get('radius')) || 1000;
+        const locality = urlParams.get('locality') || '[not provided]';
+        const date = urlParams.get('date') || '[not provided]';
+
+        document.getElementById('localityDisplay').textContent = locality;
+        document.getElementById('dateDisplay').textContent = date;
+
         let selectedUnit = 'meters';
         const drawnPolylines = [];
 
@@ -227,7 +246,7 @@
             });
         });
 
-        // Copy button with tab-delimited output + non-blocking popup
+        // Copy button with tab-delimited output + notification
         document.getElementById('copyButton').addEventListener('click', () => {
             const center = marker.getLatLng();
             const radius = circle.getRadius();
