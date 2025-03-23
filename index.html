@@ -51,6 +51,19 @@
             border-radius: 3px;
             pointer-events: none;
         }
+        #copyNotification {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-family: sans-serif;
+            z-index: 1000;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -67,9 +80,12 @@
             <option value="miles">Miles</option>
         </select>
         <button id="redrawButton">Redraw Distances</button>
-        <button id="copyButton">Copy Lat/Lon/Radius</button> <!-- New Copy Button -->
+        <button id="copyButton">Copy Lat/Lon/Radius</button>
     </div>
+
     <div id="map"></div>
+    <div id="copyNotification">Copied to clipboard</div>
+
     <script>
         // Extract parameters from the URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -211,21 +227,24 @@
             });
         });
 
-document.getElementById('copyButton').addEventListener('click', () => {
-    const center = marker.getLatLng();
-    const radius = circle.getRadius();
+        // Copy button with tab-delimited output + non-blocking popup
+        document.getElementById('copyButton').addEventListener('click', () => {
+            const center = marker.getLatLng();
+            const radius = circle.getRadius();
+            const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
 
-    const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
-
-    navigator.clipboard.writeText(output).then(() => {
-        alert("Copied to clipboard:\n" + output);
-    }).catch(err => {
-        alert("Failed to copy to clipboard.");
-        console.error(err);
-    });
-});
-
-
+            navigator.clipboard.writeText(output).then(() => {
+                const note = document.getElementById('copyNotification');
+                note.textContent = "Copied to clipboard";
+                note.style.display = "block";
+                setTimeout(() => {
+                    note.style.display = "none";
+                }, 2000);
+            }).catch(err => {
+                console.error(err);
+                alert("Failed to copy to clipboard.");
+            });
+        });
     </script>
 </body>
 </html>
