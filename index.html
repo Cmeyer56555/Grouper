@@ -4,16 +4,16 @@
     <title>Where's Walter v.10</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <!-- Leaflet Core -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 
-    <!-- Geoman (drawing tools) -->
+    <!-- Geoman for drawing -->
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css" />
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.min.js"></script>
 
-    <!-- Path Drag Plugin (must come BEFORE circles are created) -->
+    <!-- Path dragging plugin -->
     <script src="https://unpkg.com/leaflet-path-drag@0.0.7/Leaflet.Path.Drag.js"></script>
 
     <style>
@@ -41,6 +41,23 @@
         }
         #map {
             flex: 1;
+        }
+        .distance-label {
+            background-color: white;
+            border: 1px solid black;
+            padding: 2px 5px;
+            font-size: 12px;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+        .total-length-label {
+            background-color: yellow;
+            border: 1px solid black;
+            padding: 3px 6px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 3px;
+            pointer-events: none;
         }
         #copyNotification {
             display: none;
@@ -92,15 +109,12 @@
         document.getElementById('localityDisplay').textContent = locality;
         document.getElementById('dateDisplay').textContent = date;
 
+        const map = L.map('map').setView([lat, lon], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
         let selectedUnit = 'meters';
         const drawnPolylines = [];
         const markerCircleLinks = new Map();
-
-        const map = L.map('map').setView([lat, lon], 13);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-        }).addTo(map);
 
         map.pm.addControls({
             position: 'topleft',
@@ -114,11 +128,10 @@
             removalMode: true
         });
 
-        // Initial marker + circle
         const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
         marker.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)}`);
 
-        const circle = L.circle([lat, lon], {
+        let circle = L.circle([lat, lon], {
             color: 'blue',
             fillColor: '#add8e6',
             fillOpacity: 0.5,
@@ -149,13 +162,11 @@
             circle.setRadius(newRadius);
         });
 
-        unitSelect.addEventListener('change', (e) => {
-            selectedUnit = e.target.value;
-            drawnPolylines.forEach((polyline) => showDistances(polyline));
+        unitSelect.addEventListener('change', () => {
+            drawnPolylines.forEach(showDistances);
         });
-
         redrawButton.addEventListener('click', () => {
-            drawnPolylines.forEach((polyline) => showDistances(polyline));
+            drawnPolylines.forEach(showDistances);
         });
 
         function convertDistance(distance) {
@@ -169,10 +180,8 @@
 
         function showDistances(layer) {
             let latlngs = layer.getLatLngs();
+            if (latlngs.length > 0 && Array.isArray(latlngs[0])) latlngs = latlngs[0];
             let totalDistance = 0;
-            if (latlngs.length > 0 && Array.isArray(latlngs[0])) {
-                latlngs = latlngs[0];
-            }
 
             map.eachLayer((l) => {
                 if (l.options.icon && (l.options.icon.options.className === 'distance-label' || l.options.icon.options.className === 'total-length-label')) {
@@ -181,8 +190,8 @@
             });
 
             for (let i = 1; i < latlngs.length; i++) {
-                const distance = latlngs[i].distanceTo(latlngs[i - 1]);
-                totalDistance += distance;
+                const dist = latlngs[i].distanceTo(latlngs[i - 1]);
+                totalDistance += dist;
                 const midpoint = L.latLng(
                     (latlngs[i].lat + latlngs[i - 1].lat) / 2 + 0.00025,
                     (latlngs[i].lng + latlngs[i - 1].lng) / 2 + 0.00025
@@ -190,7 +199,7 @@
                 L.marker(midpoint, {
                     icon: L.divIcon({
                         className: 'distance-label',
-                        html: convertDistance(distance),
+                        html: convertDistance(dist),
                         iconSize: [50, 20],
                         iconAnchor: [25, 10]
                     })
@@ -220,16 +229,11 @@
                 const { lat, lng } = m.getLatLng();
                 m.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lng.toFixed(5)}`).openPopup();
 
-                // Try to link to a nearby circle
                 let closestCircle = null;
-                let minDist = Infinity;
-                map.eachLayer(l => {
-                    if (l instanceof L.Circle) {
-                        const d = m.getLatLng().distanceTo(l.getLatLng());
-                        if (d < 10 && d < minDist) {
-                            closestCircle = l;
-                            minDist = d;
-                        }
+                map.eachLayer(layer => {
+                    if (layer instanceof L.Circle) {
+                        const d = m.getLatLng().distanceTo(layer.getLatLng());
+                        if (d < 10) closestCircle = layer;
                     }
                 });
                 if (closestCircle) markerCircleLinks.set(m, closestCircle);
@@ -248,9 +252,7 @@
         });
 
         document.getElementById('copyButton').addEventListener('click', () => {
-            let allMarkers = [];
-            let allCircles = [];
-
+            let allMarkers = [], allCircles = [];
             map.eachLayer(layer => {
                 if (layer instanceof L.Marker) allMarkers.push(layer);
                 if (layer instanceof L.Circle) allCircles.push(layer);
@@ -264,17 +266,11 @@
             const center = allMarkers[0].getLatLng();
             const radius = allCircles[0].getRadius();
             const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
-
             navigator.clipboard.writeText(output).then(() => {
                 const note = document.getElementById('copyNotification');
                 note.textContent = "Copied to clipboard";
                 note.style.display = "block";
-                setTimeout(() => {
-                    note.style.display = "none";
-                }, 2000);
-            }).catch(err => {
-                console.error(err);
-                alert("Failed to copy to clipboard.");
+                setTimeout(() => { note.style.display = "none"; }, 2000);
             });
         });
     </script>
