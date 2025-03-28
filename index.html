@@ -1,13 +1,12 @@
+// FULL UPDATED FILE
 <!DOCTYPE html>
 <html>
 <head>
     <title>Where's Walter v.11</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <!-- Leaflet Geoman Plugin for Drawing Tools -->
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css" />
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.min.js"></script>
     <style>
@@ -46,7 +45,6 @@
             padding: 2px 5px;
             font-size: 12px;
             border-radius: 3px;
-            pointer-events: none;
         }
         .total-length-label {
             background-color: yellow;
@@ -55,7 +53,6 @@
             font-size: 14px;
             font-weight: bold;
             border-radius: 3px;
-            pointer-events: none;
         }
         #copyNotification {
             display: none;
@@ -73,7 +70,6 @@
     </style>
 </head>
 <body>
-    <!-- Controls -->
     <div id="controls">
         <label for="radiusSlider">Adjust Radius (meters):</label>
         <input type="range" id="radiusSlider" min="100" max="10000" step="100" value="1000">
@@ -89,13 +85,11 @@
         <button id="copyButton">Copy Lat/Lon/Radius</button>
     </div>
 
-    <!-- Info Panel -->
     <div id="infoPanel">
         <strong>Locality:</strong> <span id="localityDisplay">[not provided]</span><br>
         <strong>Date:</strong> <span id="dateDisplay">[not provided]</span>
     </div>
 
-    <!-- Map and Popup -->
     <div id="map"></div>
     <div id="copyNotification">Copied to clipboard</div>
 
@@ -146,17 +140,9 @@
             radius: initialRadius
         }).addTo(map);
 
-        const radiusSlider = document.getElementById('radiusSlider');
-        const radiusValue = document.getElementById('radiusValue');
-        const unitSelect = document.getElementById('unitSelect');
-        const redrawButton = document.getElementById('redrawButton');
-
-        radiusSlider.value = initialRadius;
-        radiusValue.textContent = initialRadius;
-
-        radiusSlider.addEventListener('input', () => {
-            const newRadius = parseFloat(radiusSlider.value);
-            radiusValue.textContent = newRadius;
+        document.getElementById('radiusSlider').addEventListener('input', (e) => {
+            const newRadius = parseFloat(e.target.value);
+            document.getElementById('radiusValue').textContent = newRadius;
             map.removeLayer(circle);
             circle = L.circle([lat, lon], {
                 color: 'blue',
@@ -166,12 +152,12 @@
             }).addTo(map);
         });
 
-        unitSelect.addEventListener('change', (e) => {
+        document.getElementById('unitSelect').addEventListener('change', (e) => {
             selectedUnit = e.target.value;
             drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
-        redrawButton.addEventListener('click', () => {
+        document.getElementById('redrawButton').addEventListener('click', () => {
             drawnPolylines.forEach((polyline) => showDistances(polyline));
         });
 
@@ -187,15 +173,10 @@
         function showDistances(layer) {
             let latlngs = layer.getLatLngs();
             let totalDistance = 0;
-
-            if (latlngs.length > 0 && Array.isArray(latlngs[0])) {
-                latlngs = latlngs[0];
-            }
+            if (latlngs.length > 0 && Array.isArray(latlngs[0])) latlngs = latlngs[0];
 
             map.eachLayer((l) => {
-                if (l.options.icon && (l.options.icon.options.className === 'distance-label' || l.options.icon.options.className === 'total-length-label')) {
-                    map.removeLayer(l);
-                }
+                if (l._isDistanceLabel) map.removeLayer(l);
             });
 
             for (let i = 1; i < latlngs.length; i++) {
@@ -204,33 +185,34 @@
 
                 const zoom = map.getZoom();
                 const offsetFactor = 0.00025 * (18 / zoom);
-
                 const midpoint = L.latLng(
                     (latlngs[i].lat + latlngs[i - 1].lat) / 2 + offsetFactor,
                     (latlngs[i].lng + latlngs[i - 1].lng) / 2 + offsetFactor
                 );
 
-                L.marker(midpoint, {
+                const label = L.marker(midpoint, {
                     icon: L.divIcon({
                         className: 'distance-label',
                         html: convertDistance(distance),
                         iconSize: [50, 20],
                         iconAnchor: [25, 10]
                     }),
-                    pmIgnore: true
+                    draggable: true
                 }).addTo(map);
+                label._isDistanceLabel = true;
             }
 
             const center = latlngs[Math.floor(latlngs.length / 2)];
-            L.marker(center, {
+            const totalLabel = L.marker(center, {
                 icon: L.divIcon({
                     className: 'total-length-label',
                     html: `Total: ${convertDistance(totalDistance)}`,
                     iconSize: [100, 25],
                     iconAnchor: [50, 12]
                 }),
-                pmIgnore: true
+                draggable: true
             }).addTo(map);
+            totalLabel._isDistanceLabel = true;
         }
 
         map.on('pm:create', (e) => {
@@ -272,25 +254,17 @@
         document.getElementById('copyButton').addEventListener('click', () => {
             let allMarkers = [];
             let allCircles = [];
-
             map.eachLayer(layer => {
-                if (layer instanceof L.Marker && layer._isMainMarker) {
-                    allMarkers.push(layer);
-                }
-                if (layer instanceof L.Circle) {
-                    allCircles.push(layer);
-                }
+                if (layer instanceof L.Marker && layer._isMainMarker) allMarkers.push(layer);
+                if (layer instanceof L.Circle) allCircles.push(layer);
             });
-
             if (allMarkers.length !== 1 || allCircles.length !== 1) {
                 alert(`You must have exactly 1 marker and 1 circle.\n\nCurrently found:\nMarkers: ${allMarkers.length}\nCircles: ${allCircles.length}`);
                 return;
             }
-
             const center = allMarkers[0].getLatLng();
             const radius = allCircles[0].getRadius();
             const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
-
             navigator.clipboard.writeText(output).then(() => {
                 const note = document.getElementById('copyNotification');
                 note.textContent = "Copied to clipboard";
