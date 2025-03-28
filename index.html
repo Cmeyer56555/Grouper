@@ -133,10 +133,10 @@
         });
 
         const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
-        marker.bindPopup(Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)});
+        marker.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)}`);
         marker.on('dragend', (e) => {
             const newLatLng = e.target.getLatLng();
-            e.target.setPopupContent(Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)});
+            e.target.setPopupContent(`Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)}`);
         });
 
         let circle = L.circle([lat, lon], {
@@ -224,7 +224,7 @@
             L.marker(center, {
                 icon: L.divIcon({
                     className: 'total-length-label',
-                    html: Total: ${convertDistance(totalDistance)},
+                    html: `Total: ${convertDistance(totalDistance)}`,
                     iconSize: [100, 25],
                     iconAnchor: [50, 12]
                 })
@@ -241,10 +241,10 @@
                 m.options.draggable = true;
                 m.dragging.enable();
                 const { lat, lng } = m.getLatLng();
-                m.bindPopup(Latitude: ${lat.toFixed(5)}<br>Longitude: ${lng.toFixed(5)}).openPopup();
+                m.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lng.toFixed(5)}`).openPopup();
                 m.on('dragend', (ev) => {
                     const newLatLng = ev.target.getLatLng();
-                    ev.target.setPopupContent(Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)});
+                    ev.target.setPopupContent(`Latitude: ${newLatLng.lat.toFixed(5)}<br>Longitude: ${newLatLng.lng.toFixed(5)}`);
                 });
             }
         });
@@ -281,13 +281,13 @@ map.on('pm:vertexchanged', (e) => {
             });
 
             if (allMarkers.length !== 1 || allCircles.length !== 1) {
-                alert(You must have exactly 1 marker and 1 circle.\n\nCurrently found:\nMarkers: ${allMarkers.length}\nCircles: ${allCircles.length});
+                alert(`You must have exactly 1 marker and 1 circle.\n\nCurrently found:\nMarkers: ${allMarkers.length}\nCircles: ${allCircles.length}`);
                 return;
             }
 
             const center = allMarkers[0].getLatLng();
             const radius = allCircles[0].getRadius();
-            const output = ${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)};
+            const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
 
             navigator.clipboard.writeText(output).then(() => {
                 const note = document.getElementById('copyNotification');
