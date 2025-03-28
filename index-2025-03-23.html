@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Where's Walter v.11</title>
+    <title>Where's Walter v.10</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Leaflet CSS -->
@@ -192,17 +192,11 @@
                 latlngs = latlngs[0];
             }
 
-map.eachLayer(layer => {
-    if (
-        layer instanceof L.Marker &&
-        (!layer.options.icon || 
-         (layer.options.icon.options.className !== 'distance-label' &&
-          layer.options.icon.options.className !== 'total-length-label'))
-    ) {
-        allMarkers.push(layer);
-    }
-});
-
+            map.eachLayer((l) => {
+                if (l.options.icon && (l.options.icon.options.className === 'distance-label' || l.options.icon.options.className === 'total-length-label')) {
+                    map.removeLayer(l);
+                }
+            });
 
             for (let i = 1; i < latlngs.length; i++) {
                 const distance = latlngs[i].distanceTo(latlngs[i - 1]);
@@ -262,16 +256,6 @@ map.eachLayer(layer => {
                 }
             });
         });
-
-map.on('pm:vertexchanged', (e) => {
-    const changedLatLng = e.latlng;
-    drawnPolylines.forEach((polyline) => {
-        const latlngs = polyline.getLatLngs().flat();
-        if (latlngs.some(ll => ll.equals(changedLatLng))) {
-            showDistances(polyline);
-        }
-    });
-});
 
         document.getElementById('copyButton').addEventListener('click', () => {
             let allMarkers = [];
