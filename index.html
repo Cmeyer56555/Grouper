@@ -100,7 +100,6 @@
     <div id="copyNotification">Copied to clipboard</div>
 
     <script>
-        // Extract parameters from the URL
         const urlParams = new URLSearchParams(window.location.search);
         const lat = parseFloat(urlParams.get('lat')) || 0;
         const lon = parseFloat(urlParams.get('lon')) || 0;
@@ -132,7 +131,8 @@
             removalMode: true
         });
 
-        const marker = L.marker([lat, lon], { draggable: true, pmIgnore: false }).addTo(map);
+        const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+        marker._isMainMarker = true;
         marker.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)}`);
         marker.on('dragend', (e) => {
             const newLatLng = e.target.getLatLng();
@@ -274,7 +274,7 @@
             let allCircles = [];
 
             map.eachLayer(layer => {
-                if (layer instanceof L.Marker && !layer.options.icon) {
+                if (layer instanceof L.Marker && layer._isMainMarker) {
                     allMarkers.push(layer);
                 }
                 if (layer instanceof L.Circle) {
