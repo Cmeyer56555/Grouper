@@ -132,7 +132,7 @@
             removalMode: true
         });
 
-        const marker = L.marker([lat, lon], { draggable: true, pmIgnore: false }).addTo(map);
+        const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
         marker.bindPopup(`Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)}`);
         marker.on('dragend', (e) => {
             const newLatLng = e.target.getLatLng();
@@ -216,8 +216,7 @@
                         html: convertDistance(distance),
                         iconSize: [50, 20],
                         iconAnchor: [25, 10]
-                    }),
-                    pmIgnore: true
+                    })
                 }).addTo(map);
             }
 
@@ -228,8 +227,7 @@
                     html: `Total: ${convertDistance(totalDistance)}`,
                     iconSize: [100, 25],
                     iconAnchor: [50, 12]
-                }),
-                pmIgnore: true
+                })
             }).addTo(map);
         }
 
@@ -259,22 +257,22 @@
             });
         });
 
-        map.on('pm:vertexchanged', (e) => {
-            const changedLatLng = e.latlng;
-            drawnPolylines.forEach((polyline) => {
-                const latlngs = polyline.getLatLngs().flat();
-                if (latlngs.some(ll => ll.equals(changedLatLng))) {
-                    showDistances(polyline);
-                }
-            });
-        });
+map.on('pm:vertexchanged', (e) => {
+    const changedLatLng = e.latlng;
+    drawnPolylines.forEach((polyline) => {
+        const latlngs = polyline.getLatLngs().flat();
+        if (latlngs.some(ll => ll.equals(changedLatLng))) {
+            showDistances(polyline);
+        }
+    });
+});
 
         document.getElementById('copyButton').addEventListener('click', () => {
             let allMarkers = [];
             let allCircles = [];
 
             map.eachLayer(layer => {
-                if (layer instanceof L.Marker && !layer.options.icon) {
+                if (layer instanceof L.Marker) {
                     allMarkers.push(layer);
                 }
                 if (layer instanceof L.Circle) {
