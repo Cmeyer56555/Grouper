@@ -120,21 +120,17 @@
             maxZoom: 19,
         }).addTo(map);
 
-map.pm.addControls({
-    position: 'topleft',
-    drawMarker: true,
-    drawPolyline: true,
-    drawCircle: true,
-    drawPolygon: false,
-    drawRectangle: false,
-    editMode: true,
-    dragMode: true,
-    removalMode: true
-});
-
-map.pm.setGlobalOptions({
-    finishOnDoubleClick: true
-});
+        map.pm.addControls({
+            position: 'topleft',
+            drawMarker: true,
+            drawPolyline: true,
+            drawCircle: true,
+            drawPolygon: false,
+            drawRectangle: false,
+            editMode: true,
+            dragMode: true,
+            removalMode: true
+        });
 
         const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
         marker.bindPopup(Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)});
@@ -272,46 +268,39 @@ map.on('pm:vertexchanged', (e) => {
 });
 
         document.getElementById('copyButton').addEventListener('click', () => {
-    let allMarkers = [];
-    let allCircles = [];
+            let allMarkers = [];
+            let allCircles = [];
 
-    map.eachLayer(layer => {
-        if (
-            layer instanceof L.Marker &&
-            (!layer.options.icon ||
-             (layer.options.icon.options.className !== 'distance-label' &&
-              layer.options.icon.options.className !== 'total-length-label'))
-        ) {
-            allMarkers.push(layer);
-        }
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    allMarkers.push(layer);
+                }
+                if (layer instanceof L.Circle) {
+                    allCircles.push(layer);
+                }
+            });
 
-        if (layer instanceof L.Circle) {
-            allCircles.push(layer);
-        }
-    });
+            if (allMarkers.length !== 1 || allCircles.length !== 1) {
+                alert(You must have exactly 1 marker and 1 circle.\n\nCurrently found:\nMarkers: ${allMarkers.length}\nCircles: ${allCircles.length});
+                return;
+            }
 
-    if (allMarkers.length !== 1 || allCircles.length !== 1) {
-        alert(`You must have exactly 1 marker and 1 circle.\n\nCurrently found:\nMarkers: ${allMarkers.length}\nCircles: ${allCircles.length}`);
-        return;
-    }
+            const center = allMarkers[0].getLatLng();
+            const radius = allCircles[0].getRadius();
+            const output = ${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)};
 
-    const center = allMarkers[0].getLatLng();
-    const radius = allCircles[0].getRadius();
-    const output = `${center.lat.toFixed(5)}\t${center.lng.toFixed(5)}\tWGS84\t${radius.toFixed(0)}`;
-
-    navigator.clipboard.writeText(output).then(() => {
-        const note = document.getElementById('copyNotification');
-        note.textContent = "Copied to clipboard";
-        note.style.display = "block";
-        setTimeout(() => {
-            note.style.display = "none";
-        }, 2000);
-    }).catch(err => {
-        console.error(err);
-        alert("Failed to copy to clipboard.");
-    });
-});
-
+            navigator.clipboard.writeText(output).then(() => {
+                const note = document.getElementById('copyNotification');
+                note.textContent = "Copied to clipboard";
+                note.style.display = "block";
+                setTimeout(() => {
+                    note.style.display = "none";
+                }, 2000);
+            }).catch(err => {
+                console.error(err);
+                alert("Failed to copy to clipboard.");
+            });
+        });
     </script>
 </body>
 </html>
