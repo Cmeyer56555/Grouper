@@ -120,17 +120,21 @@
             maxZoom: 19,
         }).addTo(map);
 
-        map.pm.addControls({
-            position: 'topleft',
-            drawMarker: true,
-            drawPolyline: true,
-            drawCircle: true,
-            drawPolygon: false,
-            drawRectangle: false,
-            editMode: true,
-            dragMode: true,
-            removalMode: true
-        });
+map.pm.addControls({
+    position: 'topleft',
+    drawMarker: true,
+    drawPolyline: true,
+    drawCircle: true,
+    drawPolygon: false,
+    drawRectangle: false,
+    editMode: true,
+    dragMode: true,
+    removalMode: true
+});
+
+map.pm.setGlobalOptions({
+    finishOnDoubleClick: true
+});
 
         const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
         marker.bindPopup(Latitude: ${lat.toFixed(5)}<br>Longitude: ${lon.toFixed(5)});
