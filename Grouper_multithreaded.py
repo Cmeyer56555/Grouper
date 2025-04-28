@@ -9,18 +9,22 @@ from datetime import datetime
 import time
 import sys
 import re
+import multiprocessing as mp
+import argparse
+from tqdm import tqdm
+import threading
+import queue
 
 def arg_setup():
     # set up argument parser
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", required=True, \
-        help="Input directory path for a single TAB file.")
+    ap.add_argument("-i", "--input", required=False, \
+        help="Input directory path for CSV files.")
     ap.add_argument("-v", "--verbose", action="store_true", \
         help="Detailed output.")
     args = vars(ap.parse_args())
     return args
 
-    
 # Function to display the custom fish progress bar
 def fish_progress_bar(iterable, total=None, desc="Processing"):
     total = total or len(iterable)  # Set total if not provided
@@ -119,7 +123,8 @@ def find_potential_duplicates(df, similarity_threshold, method='fuzzy'):
     df['distance'] = None
     df['distanceUnit'] = None
     
-    for i, row1 in fish_progress_bar(df.iterrows(), total=len(df), desc="Building groups"):
+    #for i, row1 in fish_progress_bar(df.iterrows(), total=len(df), desc="Building groups"):
+    for i, row1 in df.iterrows():
         if assigned_groups[i] != -1:  # Skip if this record has already been assigned a group
             continue
         current_group = [i]  # Start a new group with this record
@@ -168,7 +173,8 @@ def assign_sub_groups(df, eventdate_tolerance=3, recordnumber_tolerance=5, habit
     # Convert recordNumber to numeric for comparison, setting non-convertible values to NaN
     df['recordNumber'] = pd.to_numeric(df['recordNumber'], errors='coerce')
     
-    for group_id in fish_progress_bar(df['Group_ID'].unique(), desc="Assigning sub-groups"):
+    #for group_id in fish_progress_bar(df['Group_ID'].unique(), desc="Assigning sub-groups"):
+    for group_id in df['Group_ID'].unique():
         group_df = df[df['Group_ID'] == group_id]
         for i, row1 in group_df.iterrows():
             if sub_groups[i] != -1:  # Skip if already assigned a sub-group
@@ -253,9 +259,11 @@ def filter_by_collection_code(df, allowed_collections):
     return filtered_df
 
 # Function to prompt user for folder selection and load all CSV files
-def load_csv_files_from_folder():
-    Tk().withdraw()  # Close the root window
-    folder_path = askdirectory()  # Ask user to select a folder
+def load_csv_files_from_folder(folder_path=None):
+    if not folder_path:    
+        Tk().withdraw()  # Close the root window
+        folder_path = askdirectory()  # Ask user to select a folder
+
     if folder_path:
         csv_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
         if csv_files:
@@ -373,6 +381,33 @@ def save_filtered_groups_to_csv(input_filename, df, group_assignments, sub_group
     else:
         print(f"No groups found with more than {min_size} records and non-blank localities.")
 
+def process_csv(csv_file=None,
+    config=None,
+    export_columns=None,
+    eventdate_tolerance=None, 
+    recordnumber_tolerance=None, 
+    habitat_similarity_threshold=None,
+    similarity_threshold=None,
+    min_size=None,
+    allowed_collections=None):
+
+    print(f"Processing file: {csv_file}")
+
+    # Load the CSV file
+    df = pd.read_csv(csv_file, encoding='ISO-8859-1', low_memory=False)
+
+    # Find duplicate groups based on the user-defined similarity threshold
+    groups, group_assignments = find_potential_duplicates(df, similarity_threshold, method='fuzzy')
+
+    # Assign the 'Group_ID' column to the DataFrame before creating sub-groups
+    df['Group_ID'] = group_assignments
+
+    # Assign sub-groups based on eventDate, recordNumber, and habitat similarity
+    sub_group_assignments = assign_sub_groups(df, eventdate_tolerance=eventdate_tolerance, recordnumber_tolerance=recordnumber_tolerance, habitat_similarity_threshold=habitat_similarity_threshold)
+
+    # Save the filtered groups to the CSV, using the input filename to create the output filename
+    save_filtered_groups_to_csv(csv_file, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_collections)
+
 # Main function
 def main():
     # Load the configuration and fields from export_config.txt
@@ -381,8 +416,16 @@ def main():
     if config is None or export_columns is None:
         return
     
-    # Load CSV files from the selected folder
-    csv_files, folder_path = load_csv_files_from_folder()
+    # get command line args
+    args = arg_setup()
+    print(args['input'])
+    input_path = args['input']
+    if input_path: 
+        csv_files, folder_path = load_csv_files_from_folder(folder_path=input_path)
+    else:
+        # Load CSV files from the selected folder
+        csv_files, folder_path = load_csv_files_from_folder()
+    #print(csv_files, folder_path)
     
     if csv_files:
         try:
@@ -395,6 +438,16 @@ def main():
             allowed_collections = config.get('allowed_collections', '')  # Fetch allowed collections
             
             for csv_file in csv_files:
+                process_csv(csv_file=csv_file,
+                    config=config,
+                    export_columns=export_columns,
+                    eventdate_tolerance=eventdate_tolerance, 
+                    recordnumber_tolerance=recordnumber_tolerance, 
+                    habitat_similarity_threshold=habitat_similarity_threshold,
+                    similarity_threshold=similarity_threshold,
+                    min_size=min_size,
+                    allowed_collections=allowed_collections)
+                """
                 print(f"Processing file: {csv_file}")
                 
                 # Load the CSV file
@@ -411,11 +464,121 @@ def main():
                 
                 # Save the filtered groups to the CSV, using the input filename to create the output filename
                 save_filtered_groups_to_csv(csv_file, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_collections)
+                """
                 
         except ValueError:
             print("Invalid input. Please check the configuration values in export_config.txt.")
     else:
         print("No valid CSV files to process.")
 
+
+
+def process_multiple_csv_files(csv_files, num_threads=4):
+
+    # Load the configuration and fields from export_config.txt
+    config, export_columns = load_export_config()
+    
+    if config is None or export_columns is None:
+        return
+
+
+    # Read tolerances and thresholds from the configuration file
+    eventdate_tolerance = int(config.get('eventdate_tolerance', 3))
+    recordnumber_tolerance = int(config.get('recordnumber_tolerance', 5))
+    habitat_similarity_threshold = int(config.get('habitat_similarity_threshold', 80))
+    similarity_threshold = int(config.get('similarity_threshold', 80))
+    min_size = int(config.get('min_size', 0))
+    allowed_collections = config.get('allowed_collections', '')  # Fetch allowed collections
+
+
+
+    """
+    Process multiple CSV files in parallel using threading.
+    
+    Args:
+        csv_files (list): List of CSV file paths to process
+        num_threads (int): Number of threads to use
+    """
+    # Create a queue to hold the files
+    file_queue = queue.Queue()
+    
+    # Put all files in the queue
+    for file in csv_files:
+        file_queue.put(file)
+    
+    # Define the worker function
+    def worker():
+        while not file_queue.empty():
+            try:
+                # Get a file from the queue
+                file = file_queue.get(block=False)
+                print(f"Processing {file} in thread {threading.current_thread().name}")
+                
+                # Process the file using your existing function
+                #process_csv(file)
+                process_csv(csv_file=file,
+                    config=config,
+                    export_columns=export_columns,
+                    eventdate_tolerance=eventdate_tolerance, 
+                    recordnumber_tolerance=recordnumber_tolerance, 
+                    habitat_similarity_threshold=habitat_similarity_threshold,
+                    similarity_threshold=similarity_threshold,
+                    min_size=min_size,
+                    allowed_collections=allowed_collections)
+                
+                # Mark the task as done
+                file_queue.task_done()
+            except queue.Empty:
+                break
+            except Exception as e:
+                print(f"Error processing {file}: {e}")
+                file_queue.task_done()
+    
+    # Create and start the threads
+    threads = []
+    for i in range(min(num_threads, len(csv_files))):
+        thread = threading.Thread(target=worker, name=f"Thread-{i+1}")
+        thread.daemon = True
+        thread.start()
+        threads.append(thread)
+    
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+    
+    print("All files have been processed!")
+
+def main_multi():   
+    # Measure the execution time
+    start_time = time.time()
+
+    # Load the configuration and fields from export_config.txt
+    config, export_columns = load_export_config()
+    
+    if config is None or export_columns is None:
+        return
+    
+    # get command line args
+    args = arg_setup()
+    print(args['input'])
+    input_path = args['input']
+    if input_path: 
+        csv_files, folder_path = load_csv_files_from_folder(folder_path=input_path)
+    else:
+        # Load CSV files from the selected folder
+        csv_files, folder_path = load_csv_files_from_folder()
+    #print(csv_files, folder_path)
+    
+
+    available_cores = mp.cpu_count()
+    num_threads = max(1, available_cores - 1)
+    process_multiple_csv_files(csv_files, num_threads=num_threads)
+    elapsed_time = time.time() - start_time
+    print(f"Execution completed in {elapsed_time:.2f} seconds")
+
+
 if __name__ == "__main__":
-    main()
+    # Ensure multiprocessing works correctly on all platforms
+    #mp.freeze_support()
+    #main()
+    main_multi()
