@@ -1,3 +1,11 @@
+"""
+Based on the filtering processs in CountyChopper. 
+Meant to be used after pybels_fast.py
+and before BELS_Grouper_simple.py
+
+"""
+
+
 import os
 import pandas as pd
 from tkinter import Tk
@@ -10,7 +18,7 @@ from pathlib import Path
 def arg_setup():
     # set up argument parser
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", required=False, \
+    ap.add_argument("-i", "--input", required=True, \
         help="Input directory path for a single CSV file.")
     ap.add_argument("-o", "--out", required=False, \
         help="Output directory path for multiple CSV files.")
@@ -50,11 +58,11 @@ def count_null_collectioncode(df):
     return df
 
 # Function to read configurations from Chopper_Config.txt in the script folder
-def load_configurations():
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    config_file = os.path.join(script_dir, 'Chopper_Config.txt')
+def load_configurations(config_path=None):
+    #script_dir = os.path.dirname(os.path.realpath(__file__))
+    #config_file = os.path.join(script_dir, 'Chopper_Config.txt')
 
-    if not os.path.exists(config_file):
+    if not os.path.exists(config_path):
         print("Configuration file 'Chopper_Config.txt' not found in script directory.")
         return None
 
@@ -64,7 +72,7 @@ def load_configurations():
     state_name = None
     in_county_section = False
 
-    with open(config_file, 'r') as file:
+    with open(config_path, 'r') as file:
         for line in file:
             line = line.strip()
             if line.startswith("collectionWhitelist:"):
@@ -188,5 +196,92 @@ def split_csv_by_state():
 
     print(f"Files created in directory: {output_dir}")
 
+def filter_data(data=None, collection_whitelist=None, collection_blacklist=None):
+    if 'stateProvince' not in data.columns or 'county' not in data.columns or 'collectionCode' not in data.columns:
+        # This error was raised when a TSV was opened as a CSV
+        print('columns:', data.columns)
+        raise ValueError("The CSV file must contain 'stateProvince', 'county', and 'collectionCode' columns.")
+
+
+    # Run the pre-check for missing collectionCode
+    #data = count_null_collectioncode(data)
+
+    #pybels normalizes county name, not needed here
+    #data['normalized_county'] = data['county'].apply(normalize_county_name)
+
+    # Apply whitelist/blacklist filter for collectionCode
+    data['collectionCode'] = data['collectionCode'].astype(str)
+    print('Pre-filter data shape:', data.shape)
+    
+    # Separate out records that are whitelisted
+    whitelist_data = data[data['collectionCode'].isin(collection_whitelist)]
+    print('whitelist_data shape:', whitelist_data.shape)
+
+    # Exclude records with collectionCode on the blacklist
+    data = data[~data['collectionCode'].isin(collection_blacklist)]
+    print('Blacklist removed data shape:', data.shape)
+
+    # Combine the filtered data with the whitelisted data that bypasses all filters
+    final_data = pd.concat([whitelist_data, data])
+    print('final_data (whitelist_data concat data) shape', final_data.shape)
+
+    # Filter for entries only in the selected state and the counties in the list
+    #state_data = final_data[(final_data['stateProvince'].str.lower() == state_name.lower()) & (final_data['normalized_county'].isin(county_list))]
+    state_data = final_data
+
+    #unique_counties = state_data['normalized_county'].nunique()
+
+    """
+    # Not splitting by counties in this version
+    for county, county_data in tqdm(state_data.groupby('normalized_county'), total=unique_counties, desc=f"Processing {state_name} Counties"):
+        output_filename = f"{state_name}_{county}.csv"
+        output_filename = sanitize_filename(output_filename, replacement='-')
+        output_path = os.path.join(output_dir, output_filename)
+        county_data.to_csv(output_path, index=False)
+    """
+
+    #print(f"Files created in directory: {output_dir}")
+    return state_data
+
+
 # Run the function
-split_csv_by_state()
+#split_csv_by_state()
+
+# moving config load to main
+if __name__ == "__main__":
+    args = arg_setup()
+
+    if args['input']:
+        input_csv = Path(args['input']).resolve()
+
+    print('input_csv:', input_csv)
+
+    # Load configurations from Chopper_Config.txt
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    config_file_path = os.path.join(script_dir, 'Chopper_Config.txt')
+    
+    config = load_configurations(config_path=config_file_path)
+    if not config:
+        print('config not loaded')
+    else:
+        collection_whitelist, collection_blacklist, county_list, state_name = config
+
+    if args['out']:
+        print('output path:', args['out'])
+        output_dir = Path(args['out']).resolve()
+    else:
+        output_dir = "fishnet_output"
+    print('output_dir:', output_dir)
+
+    print('Loading data...')
+    try:
+        #data = pd.read_csv(input_csv, encoding='ISO-8859-1', dtype=str, on_bad_lines='skip', low_memory=False)
+        # Loading TSV format
+        df_data = pd.read_csv(input_csv, on_bad_lines='skip', low_memory=False, sep='\t')
+    except (UnicodeDecodeError, pd.errors.ParserError) as e:
+        print(f"Error reading the file: {e}")
+        df_data = None
+
+    print('Input data shape', df_data.shape)
+    df_filtered = filter_data(data=df_data, collection_whitelist=collection_whitelist, collection_blacklist=collection_blacklist)
+    print('Filtered data shape', df_filtered.shape)

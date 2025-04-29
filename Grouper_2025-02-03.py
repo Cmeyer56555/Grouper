@@ -399,18 +399,22 @@ def main():
                 
                 # Load the CSV file
                 df = pd.read_csv(csv_file, encoding='ISO-8859-1', low_memory=False)
+                print(df.shape)
                 
                 # Find duplicate groups based on the user-defined similarity threshold
                 groups, group_assignments = find_potential_duplicates(df, similarity_threshold, method='fuzzy')
                 
                 # Assign the 'Group_ID' column to the DataFrame before creating sub-groups
                 df['Group_ID'] = group_assignments
+                print(df.shape)
                 
                 # Assign sub-groups based on eventDate, recordNumber, and habitat similarity
-                sub_group_assignments = assign_sub_groups(df, eventdate_tolerance=eventdate_tolerance, recordnumber_tolerance=recordnumber_tolerance, habitat_similarity_threshold=habitat_similarity_threshold)
+                #sub_group_assignments = assign_sub_groups(df, eventdate_tolerance=eventdate_tolerance, recordnumber_tolerance=recordnumber_tolerance, habitat_similarity_threshold=habitat_similarity_threshold)
                 
                 # Save the filtered groups to the CSV, using the input filename to create the output filename
+                sub_group_assignments = None
                 save_filtered_groups_to_csv(csv_file, df, group_assignments, sub_group_assignments, min_size, export_columns, allowed_collections)
+
                 
         except ValueError:
             print("Invalid input. Please check the configuration values in export_config.txt.")
